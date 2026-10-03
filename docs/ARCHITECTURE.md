@@ -1,5 +1,8 @@
 # TripMate — Architecture
 
+> 상태: Phase 1–8 구현 완료. 아래 설계는 실제 코드와 일치하도록 갱신되었습니다
+> (AI 레이어는 `src/server/ai/`, 외부 연동은 `src/server/integrations/{maps,weather,storage}`).
+
 > "여행자의 상황을 계속 이해하고 여행 계획을 함께 조정하는 AI 동행자"
 >
 > PLAN → PREPARE → TRAVEL → ADAPT → REMEMBER
@@ -177,18 +180,22 @@ AnalyticsEvent   (→ User?  SetNull)
 
 ```
 src/server/ai/
-  provider.ts            AIProvider 인터페이스: generateObject({schema, messages, model})
+  provider.ts            AIProvider 인터페이스: generate({schema, system, input, context, model})
   providers/openai.ts    OpenAI Responses API + structured output (json_schema)
   providers/mock.ts      결정적 mock (키 없을 때, 테스트)
   prompts/*.ts           프롬프트 모듈 (system/instructions 템플릿, 버전 필드)
   schemas/*.ts           Zod 응답 스키마 (PlanDraft, CompanionReply, AIAction …)
-  context/               TripContext 빌더 (현재 시각/일정/날씨/예산 → 최소 토큰 요약)
+  context/trip-context.ts  CompanionContext 빌더 (현재 시각/일정/위치/날씨/예산, 짧은 ref)
+  plan-validation.ts     생성 일정 검증 레이어
+  mock/                  기능별 결정적 mock + 11개 도시 POI 카탈로그
   trip-planner.ts        초기 일정 생성 → validateItinerary()
   trip-rescheduler.ts    지연/변경 이후 일정 재계산 (결정적 알고리즘 + AI 보조)
   trip-companion.ts      상황 인지 대화 → message + actions[]
   trip-analyzer.ts       예산/지출/일정 분석
   travel-reporter.ts     여행 리포트
-  guard.ts               rate limit, 중복 요청 방지, 비용 상한, usage 로깅
+  guard.ts               runAI(): rate limit, 일일 비용 예약(advisory lock), 캐시, 중복 제거,
+                         Zod 검증 + 1회 repair, AIUsageLog
+  packing / travel-reporter / trip-analyzer  준비물·리포트·지출 분석
   actions/executor.ts    AIAction 검증(스키마+권한) → 사용자 승인 후 실행
 ```
 
