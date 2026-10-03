@@ -67,6 +67,29 @@ Playwright 브라우저가 다른 경로에 있다면 `PLAYWRIGHT_CHROMIUM_PATH`
   `RateLimiter` 인터페이스 뒤에 Upstash Redis 같은 공유 저장소를 붙이세요. (AI 일일 비용 상한은 DB 기반이라 인스턴스 간에도 유지됩니다.)
 - OSM 타일·Nominatim은 개발/소규모용입니다. 트래픽이 생기면 Mapbox 토큰을 설정하세요.
 
+## 배포 (Cloudflare Workers)
+
+[OpenNext](https://opennext.js.org/cloudflare)로 Workers에 배포합니다. 설정: `wrangler.jsonc`, `open-next.config.ts`.
+
+준비물
+- **Workers Paid 플랜 권장** — 비밀번호 해시(bcrypt)가 무료 플랜의 요청당 CPU 한도(10ms)를 넘습니다.
+- 외부에서 접속 가능한 PostgreSQL (Neon, Supabase 등). Hyperdrive를 앞에 두면 연결 지연이 줄어듭니다.
+- Supabase Storage (Workers에는 파일시스템이 없으므로 `STORAGE_PROVIDER=supabase` 필수).
+
+절차
+1. `npx wrangler login`
+2. `wrangler.jsonc`의 `vars`에서 `NEXT_PUBLIC_APP_URL`, `AUTH_URL`(둘 다 실제 배포 주소), `SUPABASE_URL`을 수정
+3. 시크릿 등록: `npx wrangler secret put DATABASE_URL` (같은 방식으로 `AUTH_SECRET`, `OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
+4. 운영 DB 마이그레이션: `DATABASE_URL=<운영 DB> npx prisma migrate deploy`
+5. 배포: `NEXT_PUBLIC_APP_URL=https://<배포 주소> npm run cf:deploy` (`NEXT_PUBLIC_*`는 빌드 시 번들에 박힙니다)
+
+로컬 확인: `.dev.vars.example`을 `.dev.vars`로 복사 → `npm run cf:preview` (http://localhost:8787)
+
+참고
+- `cf:build`는 Prisma 클라이언트를 Workers용(`runtime = "cloudflare"`)으로 생성해 빌드한 뒤 Node용으로 되돌립니다.
+- Workers는 요청 간 소켓 재사용을 금지하므로 DB 클라이언트는 요청마다 만들어집니다(`src/server/db.ts`).
+- 레이트 리밋은 isolate 메모리 기반이라 Workers에서는 느슨하게 동작합니다. 엄격히 하려면 KV/Durable Objects로 교체하세요.
+
 ## 진행 상황
 
 - [x] Phase 1 — 프로젝트, DB, 인증·온보딩, 레이아웃, 랜딩, 대시보드, Trip CRUD

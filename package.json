@@ -17,7 +17,11 @@
     "db:studio": "prisma studio",
     "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "postinstall": "prisma generate",
-    "admin:grant": "tsx scripts/grant-admin.ts"
+    "admin:grant": "tsx scripts/grant-admin.ts",
+    "cf:build": "node scripts/prisma-generate-cloudflare.mjs && opennextjs-cloudflare build && prisma generate",
+    "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
+    "cf:deploy": "npm run cf:build && opennextjs-cloudflare deploy",
+    "cf:typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
@@ -53,6 +57,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.8",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.22",
@@ -68,7 +73,8 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "wrangler": "^4.147.0"
   },
   "engines": {
     "node": ">=20.19"

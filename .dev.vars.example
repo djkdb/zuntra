@@ -1,0 +1,6 @@
+# Local secrets for `npm run cf:preview` / `wrangler dev` (copy to .dev.vars).
+DATABASE_URL=postgresql://tripmate:tripmate@127.0.0.1:5432/tripmate
+AUTH_SECRET=replace-with-openssl-rand-base64-32
+AUTH_URL=http://localhost:8787
+NEXT_PUBLIC_APP_URL=http://localhost:8787
+AI_PROVIDER=mock

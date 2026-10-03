@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tripmate",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  // nodejs_compat: Node APIs used by Prisma's pg driver, Auth.js and node:crypto.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "tripmate" }],
+  "observability": { "enabled": true },
+  // Non-secret configuration. Secrets (DATABASE_URL, AUTH_SECRET, OPENAI_API_KEY,
+  // SUPABASE_SERVICE_ROLE_KEY) are set with `npx wrangler secret put <NAME>`.
+  // NEXT_PUBLIC_APP_URL is also inlined at build time — export it before `npm run cf:deploy`.
+  // AUTH_URL pins the cookie scheme so server actions and proxy.ts agree on the session cookie.
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://tripmate.example.workers.dev",
+    "AUTH_URL": "https://tripmate.example.workers.dev",
+    "AUTH_TRUST_HOST": "true",
+    "SUPABASE_URL": "https://your-project.supabase.co",
+    "SUPABASE_STORAGE_BUCKET": "trip-photos",
+    "STORAGE_PROVIDER": "supabase",
+    "WEATHER_PROVIDER": "open-meteo",
+    "MAPS_PROVIDER": "osm"
+  }
+}

@@ -54,3 +54,10 @@ next-env.d.ts
 # local photo storage (dev/test)
 /.storage/
 /.storage-test/
+
+# cloudflare / opennext
+/.open-next/
+/.wrangler/
+.dev.vars*
+!.dev.vars.example
+/prisma/schema.cloudflare.prisma
