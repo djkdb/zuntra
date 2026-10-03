@@ -49,7 +49,7 @@ export default async function TripLayout(props: LayoutProps<"/trips/[tripId]">) 
           </div>
         ) : null}
       </header>
-      <TripTabs tripId={trip.id} />
+      <TripTabs tripId={trip.id} completed={trip.status === "COMPLETED"} />
       <div className="pt-2">{props.children}</div>
     </div>
   );

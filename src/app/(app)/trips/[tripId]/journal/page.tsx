@@ -1,23 +1,14 @@
-import { BookHeartIcon } from "lucide-react";
 import type { Metadata } from "next";
-import { UpcomingFeature } from "@/components/states/upcoming-feature";
+import { JournalClient } from "@/components/journal/journal-client";
+import { requireOnboardedUser } from "@/server/auth/session";
+import { getJournal } from "@/server/services/journal-service";
+import { getTripForPage } from "@/server/services/trip-queries";
 
-export const metadata: Metadata = { title: "기록" };
+export const metadata: Metadata = { title: "여행 기록" };
 
-export default async function TripJournalPage(props: PageProps<"/trips/[tripId]/journal">) {
-  // Access is enforced by the trip layout (404 for non-members).
+export default async function JournalPage(props: PageProps<"/trips/[tripId]/journal">) {
   const { tripId } = await props.params;
-  return (
-    <UpcomingFeature
-      icon={BookHeartIcon}
-      tripId={tripId}
-      title="여행 기록"
-      description="사진, 메모, 감정, 별점을 남기면 여행이 끝난 뒤 AI가 여행 리포트로 정리해요."
-      points={[
-          "장소·날짜와 연결된 기록",
-          "여행 종료 후 Travel Report",
-          "가장 기억에 남은 장소와 음식",
-      ]}
-    />
-  );
+  const user = await requireOnboardedUser();
+  await getTripForPage(tripId, user.id);
+  return <JournalClient tripId={tripId} initialData={await getJournal(tripId, user.id)} />;
 }

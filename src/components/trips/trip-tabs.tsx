@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { FileTextIcon } from "lucide-react";
 import { TRIP_SECTIONS } from "@/components/layout/nav-config";
 import { cn } from "@/lib/utils";
 
-export function TripTabs({ tripId }: { tripId: string }) {
+export function TripTabs({ tripId, completed }: { tripId: string; completed?: boolean }) {
   const pathname = usePathname();
   return (
     <nav aria-label="여행 메뉴" className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
       <ul className="flex min-w-max gap-1 border-b">
-        {TRIP_SECTIONS.map((section) => {
+        {[...TRIP_SECTIONS, ...(completed ? [{ segment: "report", label: "리포트", icon: FileTextIcon }] : [])].map((section) => {
           const href = `/trips/${tripId}${section.segment ? `/${section.segment}` : ""}`;
           const active = pathname === href;
           return (

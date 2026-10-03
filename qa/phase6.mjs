@@ -1,0 +1,33 @@
+import { api, iso, launch, newUser, BASE } from "./lib.mjs";
+const S = process.argv[2];
+const PHOTO = process.argv[3];
+const browser = await launch();
+for (const kind of ["mobile", "desktop"]) {
+  const { ctx, page } = await newUser(browser, kind);
+  page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("ERR_CERT")) console.log(`[${kind}]`, m.text().slice(0, 300)); });
+  const trip = await api(page, "POST", "/api/trips", { title: "도쿄 3박 4일", destination: "도쿄", timezone: "Asia/Tokyo", startDate: iso(-3), endDate: iso(0), travelerCount: 2, currency: "JPY", budgetAmount: 250000, styles: ["FOOD"] });
+  await api(page, "POST", `/api/trips/${trip.id}/plan/generate`, { mode: "fill_empty" });
+  const it = await api(page, "GET", `/api/trips/${trip.id}/itinerary`);
+  for (const d of it.days) for (const i of d.items.slice(0, 3)) await api(page, "PATCH", `/api/trips/${trip.id}/items/${i.id}`, { status: "DONE" });
+  for (const [t, c, a, d] of [["호텔", "LODGING", 90000, -3], ["라멘", "FOOD", 2800, -3], ["스시", "FOOD", 12000, -2], ["팀랩", "SIGHTSEEING", 7600, -1]]) await api(page, "POST", `/api/trips/${trip.id}/expenses`, { title: t, category: c, amount: a, date: iso(d) });
+  await page.goto(`${BASE}/trips/${trip.id}/journal`);
+  await page.getByLabel("기록 내용").fill("오늘 시부야에서 먹은 라멘 진짜 맛있었다.");
+  await page.getByRole("radio", { name: /행복/ }).click();
+  await page.getByRole("radio", { name: "5점" }).click();
+  await page.locator("#journal-photos").setInputFiles([PHOTO]);
+  await page.locator('img[src^="/api/photos/"]').first().waitFor({ timeout: 20000 });
+  await page.screenshot({ path: `${S}/${kind}-p6-composer.png`, fullPage: true });
+  await page.getByRole("button", { name: "기록하기" }).click();
+  await page.getByRole("article").first().waitFor();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${S}/${kind}-p6-journal.png`, fullPage: true });
+  await page.getByRole("button", { name: "여행 종료하고 리포트 만들기" }).click();
+  await page.getByRole("button", { name: "여행 종료하기" }).click();
+  await page.waitForURL(/\/report$/, { timeout: 30000 });
+  await page.getByText("AI 여행 회고").waitFor();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${S}/${kind}-p6-report.png`, fullPage: true });
+  await ctx.close();
+}
+await browser.close();
+console.log("done");
