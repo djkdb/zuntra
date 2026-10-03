@@ -1,23 +1,46 @@
-import { SparklesIcon } from "lucide-react";
 import type { Metadata } from "next";
-import { UpcomingFeature } from "@/components/states/upcoming-feature";
+import { CompanionChat } from "@/components/companion/companion-chat";
+import { TodayView } from "@/components/today/today-view";
+import { getConversation } from "@/server/ai/trip-companion";
+import { requireOnboardedUser } from "@/server/auth/session";
+import { getTodayData } from "@/server/services/today-service";
+import { getTripForPage } from "@/server/services/trip-queries";
 
 export const metadata: Metadata = { title: "AI 동행" };
 
-export default async function TripCompanionPage(props: PageProps<"/trips/[tripId]/companion">) {
-  // Access is enforced by the trip layout (404 for non-members).
-  const { tripId } = await props.params;
+export default async function CompanionPage(props: PageProps<"/trips/[tripId]/companion">) {
+  const [{ tripId }, searchParams] = await Promise.all([props.params, props.searchParams]);
+  const user = await requireOnboardedUser();
+  const trip = await getTripForPage(tripId, user.id);
+  const [conversation, today] = await Promise.all([getConversation(tripId, user.id), getTodayData(tripId, user.id)]);
+
+  const q = typeof searchParams.q === "string" ? searchParams.q.slice(0, 500) : undefined;
+  const day = typeof searchParams.day === "string" ? searchParams.day : undefined;
+
   return (
-    <UpcomingFeature
-      icon={SparklesIcon}
-      tripId={tripId}
-      title="AI 여행 동행"
-      description="현재 시간, 위치, 날씨, 남은 일정을 이해하고 지금 무엇을 하면 좋을지 알려줘요."
-      points={[
-          "\"지금 너무 피곤해\" → 남은 일정 조정 제안",
-          "비·지연·휴무 시 대체 일정 제안",
-          "제안은 승인 후에만 일정에 반영",
-      ]}
-    />
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="min-w-0">
+        <h2 className="sr-only">AI 여행 동행과 대화</h2>
+        <CompanionChat
+          tripId={tripId}
+          currency={trip.currency}
+          initial={conversation}
+          autoSend={q ? { message: q, focusDayId: day } : undefined}
+        />
+      </div>
+      {today.todayDayId ? (
+        <aside className="hidden lg:block">
+          <div className="sticky top-6">
+            <TodayView
+              tripId={tripId}
+              itinerary={today.itinerary}
+              dayId={today.todayDayId}
+              initialNowMinute={today.nowMinute}
+              weather={today.todayWeather}
+            />
+          </div>
+        </aside>
+      ) : null}
+    </div>
   );
 }

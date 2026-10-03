@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { fromDbDate, todayInTimeZone } from "@/lib/dates";
+import { fromDbDate, nowMinuteInTimeZone, todayInTimeZone } from "@/lib/dates";
 import { minuteFromTime, reflowDay } from "@/lib/schedule";
 import { track } from "@/server/analytics/track";
 import { db } from "@/server/db";
@@ -41,12 +41,7 @@ export interface ProposedChange {
   reason: string;
 }
 
-export function nowMinuteIn(timeZone: string, now = new Date()): number {
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
-  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? 0) % 24;
-  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
-  return hour * 60 + minute;
-}
+export const nowMinuteIn = nowMinuteInTimeZone;
 
 /**
  * "AI로 일정 다시 맞추기": asks the model (or mock) for a minimal fix, then re-validates every

@@ -106,3 +106,11 @@ export function formatDDay(startIso: string, today: string): string {
   if (d === 0) return "D-DAY";
   return d > 0 ? `D-${d}` : `D+${Math.abs(d)}`;
 }
+
+/** Minutes after local midnight in an IANA time zone. */
+export function nowMinuteInTimeZone(timeZone: string, now: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? 0) % 24;
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  return hour * 60 + minute;
+}

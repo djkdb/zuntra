@@ -2,6 +2,9 @@ import { CalendarPlusIcon, ChevronRightIcon, SparklesIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FlashToast } from "@/components/states/flash-toast";
+import { TodayView } from "@/components/today/today-view";
+import { RainBanner } from "@/components/weather/rain-banner";
+import { WeatherStrip } from "@/components/weather/weather-strip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TIME_ZONES, TRAVEL_PACE_LABELS, TRAVEL_STYLE_LABELS } from "@/lib/constants";
@@ -10,6 +13,7 @@ import { formatMoney } from "@/lib/format";
 import { phaseOf } from "@/lib/trips";
 import { cn } from "@/lib/utils";
 import { requireOnboardedUser } from "@/server/auth/session";
+import { getTodayData } from "@/server/services/today-service";
 import { getTripForPage } from "@/server/services/trip-queries";
 
 export async function generateMetadata(props: PageProps<"/trips/[tripId]">): Promise<Metadata> {
@@ -23,7 +27,9 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
   const [{ tripId }, searchParams] = await Promise.all([props.params, props.searchParams]);
   const user = await requireOnboardedUser();
   const trip = await getTripForPage(tripId, user.id);
+  const todayData = await getTodayData(tripId, user.id);
   const phase = phaseOf(trip);
+  const canEdit = trip.role !== "VIEWER";
   const today = todayInTimeZone(trip.timezone);
   const totalItems = trip.days.reduce((sum, d) => sum + d.itemCount, 0);
   const tzLabel = TIME_ZONES.find((z) => z.id === trip.timezone)?.label ?? trip.timezone;
@@ -41,6 +47,18 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
       {searchParams.updated ? <FlashToast message="여행 정보를 저장했어요." /> : null}
 
       <div className="space-y-10">
+        {phase === "ongoing" && todayData.todayDayId ? (
+          <TodayView
+            tripId={trip.id}
+            itinerary={todayData.itinerary}
+            dayId={todayData.todayDayId}
+            initialNowMinute={todayData.nowMinute}
+            weather={todayData.todayWeather}
+          />
+        ) : null}
+        {todayData.weather?.suggestions.slice(0, 2).map((s) => (
+          <RainBanner key={s.dayId} tripId={trip.id} suggestion={s} canEdit={canEdit} />
+        ))}
         <section aria-labelledby="next-step" className="rounded-2xl bg-accent p-5 text-accent-foreground sm:p-6">
           <p className="text-sm font-medium">
             {phase === "upcoming"
@@ -70,6 +88,8 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
             </Button>
           </div>
         </section>
+
+        {todayData.weather ? <WeatherStrip days={todayData.weather.days} stale={todayData.weather.stale} /> : null}
 
         <section aria-labelledby="days-title" className="space-y-4">
           <h2 id="days-title" className="text-xl font-semibold">
