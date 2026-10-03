@@ -8,6 +8,8 @@ import { COMPANION_SCHEMA_NAME } from "../prompts/companion";
 import { mockCompanion } from "./companion";
 import { PACKING_SCHEMA_NAME } from "../prompts/packing";
 import { mockPacking } from "./packing";
+import { REPORTER_SCHEMA_NAME } from "../prompts/reporter";
+import { mockReport } from "./reporter";
 
 /** schemaName → deterministic handler. Every AI feature registers one. */
 export const mockHandlers: Record<string, MockHandler> = {
@@ -15,4 +17,5 @@ export const mockHandlers: Record<string, MockHandler> = {
   [RESCHEDULER_SCHEMA_NAME]: mockReschedule as MockHandler,
   [COMPANION_SCHEMA_NAME]: mockCompanion as MockHandler,
   [PACKING_SCHEMA_NAME]: mockPacking as MockHandler,
+  [REPORTER_SCHEMA_NAME]: mockReport as MockHandler,
 };

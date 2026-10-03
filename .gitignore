@@ -50,3 +50,7 @@ next-env.d.ts
 /playwright/.cache/
 # test config holds only local, non-secret values
 !.env.test
+
+# local photo storage (dev/test)
+/.storage/
+/.storage-test/
