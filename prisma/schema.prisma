@@ -242,6 +242,9 @@ model Trip {
   title           String
   destination     String
   timezone        String        @default("Asia/Seoul")
+  /// Destination centre, resolved by the maps/weather geocoder (for weather + map).
+  destinationLat  Float?
+  destinationLng  Float?
   startDate       DateTime      @db.Date
   endDate         DateTime      @db.Date
   travelerCount   Int           @default(1)
@@ -444,6 +447,8 @@ model TripPhoto {
   journalEntryId String?
   uploaderId     String?
   storageKey     String    @unique
+  contentType    String    @default("image/webp")
+  sizeBytes      Int       @default(0)
   width          Int?
   height         Int?
   caption        String?
@@ -508,6 +513,8 @@ model AIMessage {
   conversationId String
   role           AIMessageRole
   content        String
+  /// Assistant extras (quick replies, situation flags). Validated by Zod on read.
+  meta           Json?
   createdAt      DateTime      @default(now())
 
   conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -528,6 +535,7 @@ model AIAction {
   status         AIActionStatus @default(PROPOSED)
   error          String?
   decidedAt      DateTime?
+  expiresAt      DateTime?
   executedAt     DateTime?
   createdAt      DateTime       @default(now())
 

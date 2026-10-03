@@ -1,18 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { fromDbDate } from "@/lib/dates";
-import { AppError } from "@/server/errors";
+
 import { deleteTrip, getTrip, listTrips, updateTrip } from "@/server/services/trip-service";
+import { expectAppError } from "../helpers/assert";
 import { createTestTrip, createUser, db, resetDb } from "../helpers/db";
 
-async function expectAppError(promise: Promise<unknown>, code: AppError["code"]) {
-  const error = await promise.then(
-    () => null,
-    (e: unknown) => e,
-  );
-  expect(error).toBeInstanceOf(AppError);
-  expect((error as AppError).code).toBe(code);
-  return error as AppError;
-}
 
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());

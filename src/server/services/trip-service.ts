@@ -1,9 +1,7 @@
 import "server-only";
-import { z } from "zod";
 import { type Prisma, TripMemberRole } from "@/generated/prisma/client";
 import { MAX_TRIP_DAYS } from "@/lib/constants";
 import { diffDaysIso, eachDateIso, formatShortDate, fromDbDate, toDbDate } from "@/lib/dates";
-import { fieldErrors } from "@/lib/validation/common";
 import {
   type CreateTripInput,
   type UpdateTripInput,
@@ -13,6 +11,7 @@ import {
 import { track } from "@/server/analytics/track";
 import { db } from "@/server/db";
 import { AppError, notFound } from "@/server/errors";
+import { parseOrThrow } from "@/server/validate";
 
 // ───────────────────────────── Access control ─────────────────────────────
 
@@ -115,13 +114,6 @@ export async function getTrip(tripId: string, userId: string) {
 
 // ───────────────────────────── Mutations ─────────────────────────────
 
-function parseOrThrow<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
-  const parsed = schema.safeParse(input);
-  if (!parsed.success) {
-    throw new AppError("VALIDATION", "입력값을 확인해 주세요.", fieldErrors(parsed.error));
-  }
-  return parsed.data;
-}
 
 export async function createTrip(userId: string, rawInput: CreateTripInput | unknown) {
   const input = parseOrThrow(createTripSchema, rawInput);

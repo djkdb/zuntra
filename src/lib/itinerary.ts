@@ -13,6 +13,31 @@ export interface ItineraryItemView {
   address?: string | null;
   note: string | null;
   status: ItineraryItemStatus;
+  source?: "USER" | "AI";
+  dayId?: string;
+  position?: number;
+  placeId?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  isIndoor?: boolean | null;
+}
+
+export interface DayView {
+  id: string;
+  dayNumber: number;
+  date: string;
+  title: string | null;
+  notes: string | null;
+  items: ItineraryItemView[];
+}
+
+/** Categories that are usually outdoors (used for rain suggestions). */
+export const OUTDOOR_CATEGORIES = new Set<PlaceCategory>(["SIGHTSEEING", "NATURE", "ACTIVITY"]);
+
+export function isOutdoor(item: Pick<ItineraryItemView, "category" | "isIndoor">): boolean {
+  if (item.isIndoor === true) return false;
+  if (item.isIndoor === false) return true;
+  return OUTDOOR_CATEGORIES.has(item.category);
 }
 
 export function formatMinute(minute: number): string {

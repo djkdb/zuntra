@@ -81,7 +81,7 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
               return (
                 <li key={day.id}>
                   <Link
-                    href={`/trips/${trip.id}/plan#day-${day.dayNumber}`}
+                    href={`/trips/${trip.id}/plan?day=${day.dayNumber}`}
                     className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/60 sm:px-5"
                   >
                     <span

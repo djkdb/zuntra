@@ -1,0 +1,327 @@
+"use client";
+
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  AlertTriangleIcon,
+  CalendarPlusIcon,
+  CarTaxiFrontIcon,
+  FootprintsIcon,
+  PlusIcon,
+  TrainFrontIcon,
+} from "lucide-react";
+import { useId, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { EmptyState } from "@/components/states/empty-state";
+import { ErrorState } from "@/components/states/error-state";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { formatShortDate, todayInTimeZone } from "@/lib/dates";
+import { formatMoney } from "@/lib/format";
+import { type DayView, type ItineraryItemView, TRANSPORT_LABELS, formatMinute } from "@/lib/itinerary";
+import { analyzeDay, endOf, formatDelay, reflowDay } from "@/lib/schedule";
+import { cn } from "@/lib/utils";
+import type { Itinerary } from "@/server/services/itinerary-service";
+import { type ItemDraft, ItemDialog } from "./item-dialog";
+import { ItemRow } from "./item-row";
+import { useItinerary, useItineraryMutations } from "./use-itinerary";
+
+type DialogState = { mode: "create" } | { mode: "edit"; item: ItineraryItemView } | null;
+
+interface PlanEditorProps {
+  tripId: string;
+  initialData: Itinerary;
+  /** Extra controls rendered next to "일정 추가" (AI tools). */
+  renderDayTools?: (ctx: { day: DayView; editable: boolean }) => React.ReactNode;
+  renderEmptyDayAction?: (ctx: { day: DayView }) => React.ReactNode;
+  /** From `/plan?day=3` links. */
+  initialDayNumber?: number;
+}
+
+export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDayAction, initialDayNumber }: PlanEditorProps) {
+  const query = useItinerary(tripId, initialData);
+  const m = useItineraryMutations(tripId);
+  const data = query.data;
+
+  const today = data ? todayInTimeZone(data.trip.timezone) : "";
+  const [selectedDayId, setSelectedDayId] = useState<string>(() => {
+    const days = initialData.days;
+    const linked = initialDayNumber ? days.find((d) => d.dayNumber === initialDayNumber) : undefined;
+    return (linked ?? days.find((d) => d.date === todayInTimeZone(initialData.trip.timezone)) ?? days[0])?.id ?? "";
+  });
+
+  // Stable id keeps dnd-kit's aria attributes identical between server and client renders.
+  const dndId = useId();
+  const [dialog, setDialog] = useState<DialogState>(null);
+  const [pendingDelete, setPendingDelete] = useState<ItineraryItemView | null>(null);
+  const [dismissedIssues, setDismissedIssues] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const day = data?.days.find((d) => d.id === selectedDayId) ?? data?.days[0];
+  const issues = useMemo(() => (day ? analyzeDay(day.items) : []), [day]);
+  const conflicts = useMemo(() => new Map(issues.filter((i) => i.type === "OVERLAP").map((i) => [i.itemId, i.minutes])), [issues]);
+  const preview = useMemo(() => (day ? reflowDay(day.items) : null), [day]);
+  const issueSignature = day ? `${day.id}:${issues.map((i) => `${i.itemId}${i.minutes}`).join(",")}` : "";
+
+  if (query.isError && !data) {
+    return <ErrorState onRetry={() => query.refetch()} />;
+  }
+  if (!data || !day) return null;
+
+  const editable = data.trip.role !== "VIEWER";
+  const dayLabel = `DAY ${day.dayNumber} · ${formatShortDate(day.date)}`;
+  const totalCost = day.items.reduce((sum, i) => sum + (i.estimatedCost ?? 0), 0);
+  const lastEnd = day.items.length ? Math.max(...day.items.map(endOf)) : null;
+  const otherDays = data.days
+    .filter((d) => d.id !== day.id)
+    .map((d) => ({ id: d.id, label: `DAY ${d.dayNumber} · ${formatShortDate(d.date)}` }));
+
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const toIndex = day.items.findIndex((i) => i.id === over.id);
+    m.moveItem.mutate({ itemId: String(active.id), toDayId: day.id, toIndex });
+  };
+
+  const submitDraft = async (draft: ItemDraft) => {
+    if (dialog?.mode === "edit") {
+      await m.updateItem.mutateAsync({ itemId: dialog.item.id, patch: { ...draft } });
+      toast.success("일정을 수정했어요.");
+    } else {
+      await m.addItem.mutateAsync({ dayId: day.id, ...draft });
+      toast.success("일정을 추가했어요.");
+    }
+  };
+
+  const showAlert = editable && issues.length > 0 && dismissedIssues !== issueSignature;
+
+  return (
+    <div className="space-y-6">
+      {/* Day selector */}
+      <nav aria-label="날짜 선택" className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
+        <ul className="flex min-w-max gap-2">
+          {data.days.map((d) => {
+            const active = d.id === day.id;
+            return (
+              <li key={d.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDayId(d.id)}
+                  aria-current={active ? "date" : undefined}
+                  className={cn(
+                    "flex flex-col items-start rounded-xl border px-3.5 py-2 text-left transition-colors",
+                    active ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted",
+                  )}
+                >
+                  <span className="text-xs font-semibold">
+                    DAY {d.dayNumber}
+                    {d.date === today ? " · 오늘" : ""}
+                  </span>
+                  <span className={cn("text-sm", active ? "text-primary-foreground/85" : "text-muted-foreground")}>
+                    {formatShortDate(d.date)}
+                    <span className="ml-1.5 text-xs">{d.items.length > 0 ? `${d.items.length}곳` : "–"}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <section aria-labelledby="day-title" className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="day-title" className="text-xl font-semibold">
+              {dayLabel}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {day.items.length > 0
+                ? `${day.items.length}개 일정${lastEnd !== null ? ` · ${formatMinute(Math.min(lastEnd, 1439))} 종료` : ""}${
+                    totalCost > 0 ? ` · 예상 ${formatMoney(totalCost, data.trip.currency)}` : ""
+                  }`
+                : "아직 일정이 없어요"}
+            </p>
+          </div>
+          {editable ? (
+            <div className="flex flex-wrap gap-2">
+              {renderDayTools?.({ day, editable })}
+              <Button onClick={() => setDialog({ mode: "create" })}>
+                <PlusIcon data-icon="inline-start" aria-hidden />
+                일정 추가
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
+        {showAlert && preview ? (
+          <div role="alert" className="rounded-2xl border border-warning/50 bg-warning/10 p-4">
+            <p className="flex items-start gap-2 font-medium">
+              <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-[oklch(0.55_0.13_65)]" aria-hidden />
+              {preview.maxDelay > 0
+                ? `현재 일정이 ${formatDelay(preview.maxDelay)} 밀렸습니다.`
+                : "자정을 넘기는 일정이 있어요."}
+            </p>
+            <p className="mt-1 pl-6 text-sm text-muted-foreground">
+              {preview.maxDelay > 0
+                ? `이후 일정 ${preview.changes.length}개를 이동시간에 맞춰 자동으로 조정할까요?`
+                : "일정을 줄이거나 다른 날로 옮겨 주세요."}
+              {preview.overflow.length > 0 && preview.maxDelay > 0 ? " 조정하면 일부 일정이 자정을 넘겨요." : ""}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2 pl-6">
+              {preview.maxDelay > 0 ? (
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    m.reflowDay.mutate(
+                      { dayId: day.id },
+                      { onSuccess: (r) => toast.success(`일정 ${r.changes.length}개의 시간을 조정했어요.`) },
+                    )
+                  }
+                  disabled={m.reflowDay.isPending}
+                >
+                  자동 조정
+                </Button>
+              ) : null}
+              <Button size="sm" variant="outline" onClick={() => setDismissedIssues(issueSignature)}>
+                직접 수정
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {day.items.length === 0 ? (
+          <EmptyState
+            icon={CalendarPlusIcon}
+            title="이 날의 일정을 채워보세요"
+            description="가고 싶은 곳을 추가하거나 AI에게 하루 일정을 부탁할 수 있어요."
+            action={
+              editable ? (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {renderEmptyDayAction?.({ day })}
+                  <Button variant="outline" onClick={() => setDialog({ mode: "create" })}>
+                    <PlusIcon data-icon="inline-start" aria-hidden />
+                    직접 추가
+                  </Button>
+                </div>
+              ) : null
+            }
+          />
+        ) : (
+          <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={day.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+              <ol className="space-y-0" aria-label={`${dayLabel} 일정`}>
+                {day.items.map((item, index) => (
+                  <li key={item.id}>
+                    {index > 0 ? <TravelLeg item={item} /> : null}
+                    <ItemRow
+                      item={item}
+                      currency={data.trip.currency}
+                      conflictMinutes={conflicts.get(item.id)}
+                      editable={editable}
+                      otherDays={otherDays}
+                      onEdit={() => setDialog({ mode: "edit", item })}
+                      onToggleDone={() =>
+                        m.updateItem.mutate({ itemId: item.id, patch: { status: item.status === "DONE" ? "PLANNED" : "DONE" } })
+                      }
+                      onDelete={() => setPendingDelete(item)}
+                      onMoveToDay={(toDayId) =>
+                        m.moveItem.mutate(
+                          { itemId: item.id, toDayId, toIndex: 999 },
+                          { onSuccess: () => toast.success("다른 날로 옮겼어요.") },
+                        )
+                      }
+                    />
+                  </li>
+                ))}
+              </ol>
+            </SortableContext>
+          </DndContext>
+        )}
+
+        {editable && day.items.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setDialog({ mode: "create" })}
+            className="ml-14 flex h-12 w-[calc(100%-3.5rem)] items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-muted-foreground hover:bg-muted"
+          >
+            <PlusIcon className="size-4" aria-hidden />
+            일정 추가
+          </button>
+        ) : null}
+      </section>
+
+      {dialog ? (
+        <ItemDialog
+          key={dialog.mode === "edit" ? dialog.item.id : "create"}
+          open
+          onOpenChange={(open) => !open && setDialog(null)}
+          mode={dialog.mode}
+          dayLabel={dayLabel}
+          currency={data.trip.currency}
+          initial={
+            dialog.mode === "edit"
+              ? dialog.item
+              : { startMinute: lastEnd !== null ? Math.min(Math.ceil((lastEnd + 15) / 15) * 15, 1380) : 600 }
+          }
+          onSubmit={submitDraft}
+        />
+      ) : null}
+
+      <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>‘{pendingDelete?.title}’ 일정을 삭제할까요?</AlertDialogTitle>
+            <AlertDialogDescription>삭제한 일정은 되돌릴 수 없어요.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (pendingDelete) m.deleteItem.mutate(pendingDelete.id, { onSuccess: () => toast.success("일정을 삭제했어요.") });
+                setPendingDelete(null);
+              }}
+            >
+              삭제하기
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function TravelLeg({ item }: { item: ItineraryItemView }) {
+  const Icon = item.transportMode === "WALK" ? FootprintsIcon : item.transportMode === "TAXI" || item.transportMode === "CAR" ? CarTaxiFrontIcon : TrainFrontIcon;
+  return (
+    <div className="flex items-center gap-2 py-1.5 pl-[4.25rem] text-xs text-muted-foreground">
+      <span className="h-4 w-px bg-border" aria-hidden />
+      <Icon className="size-3.5" aria-hidden />
+      {item.travelMinutesFromPrev !== null
+        ? `${item.transportMode ? TRANSPORT_LABELS[item.transportMode] : "이동"} ${item.travelMinutesFromPrev}분`
+        : "이동 약 15분"}
+    </div>
+  );
+}
