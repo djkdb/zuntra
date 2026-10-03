@@ -9,10 +9,16 @@ test("landing explains the product and leads to signup", async ({ page }) => {
   await expect(page).toHaveURL(/\/signup$/);
 });
 
-test("demo trip is viewable without an account", async ({ page }) => {
+test("demo mode works without an account and never needs the database", async ({ page }) => {
   await page.goto("/demo");
   await expect(page.getByRole("heading", { name: "Tokyo 5 Days" })).toBeVisible();
-  await expect(page.getByText("팀랩 플래닛")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "TODAY" })).toBeVisible();
+  await page.getByRole("tab", { name: "AI 동행" }).click();
+  await page.getByRole("button", { name: "지금 너무 피곤해" }).click();
+  await page.getByRole("button", { name: "일정 줄이기" }).click();
+  await expect(page.getByText("적용했어요")).toBeVisible();
+  await page.getByRole("tab", { name: "일정" }).click();
+  await expect(page.getByText("아메요코 시장")).toHaveCount(0);
 });
 
 test("protected pages redirect to login with a safe callback", async ({ page }) => {
@@ -41,7 +47,7 @@ test("signup → onboarding → create, edit and delete a trip", async ({ page }
 
   await expect(page.getByRole("heading", { level: 1, name: "도쿄 4박 5일" })).toBeVisible();
   await expect(page.getByText("여행을 만들었어요!")).toBeVisible();
-  await expect(page.getByText("DAY 5")).toBeVisible();
+  await expect(page.getByRole("link", { name: /DAY 5/ })).toBeVisible();
   await expect(page.getByText("₩1,500,000")).toBeVisible();
   const tripUrl = page.url().split("?")[0]!;
 
@@ -55,8 +61,8 @@ test("signup → onboarding → create, edit and delete a trip", async ({ page }
   await page.getByLabel("귀국일").fill(isoDaysFromNow(33));
   await page.getByRole("button", { name: "저장하기" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "도쿄 먹방 여행" })).toBeVisible();
-  await expect(page.getByText("DAY 4")).toBeVisible();
-  await expect(page.getByText("DAY 5")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /DAY 4/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /DAY 5/ })).toHaveCount(0);
 
   // Delete with confirmation.
   await page.getByRole("button", { name: "삭제" }).click();

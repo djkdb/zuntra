@@ -11,7 +11,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
             <Logo />
           </Link>
           <nav aria-label="사이트 메뉴" className="flex items-center gap-1 sm:gap-2">
-            <Link href="/demo" className="hidden px-3 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline">
+            <Link href="/demo" className="hidden h-10 items-center px-3 text-sm font-medium text-muted-foreground hover:text-foreground sm:inline-flex">
               데모
             </Link>
             <Button asChild variant="ghost">

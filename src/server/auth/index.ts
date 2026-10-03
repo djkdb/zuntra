@@ -34,10 +34,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
         const { email, password } = parsed.data;
 
-        const ip = request ? clientIpFrom(request.headers) : "unknown";
+        const ip = request ? clientIpFrom(request.headers) : null;
+        // Keyed on email+IP so a stranger cannot lock someone out of their own account;
+        // the per-IP limit separately slows password spraying across many emails.
         const [byEmail, byIp] = await Promise.all([
-          loginLimiter.consume(`email:${email}`),
-          loginIpLimiter.consume(`ip:${ip}`),
+          loginLimiter.consume(`email:${email}:${ip ?? "?"}`),
+          ip ? loginIpLimiter.consume(`ip:${ip}`) : Promise.resolve({ ok: true }),
         ]);
         if (!byEmail.ok || !byIp.ok) throw new RateLimitedSignin();
 
@@ -48,7 +50,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await verifyPassword(password, user?.passwordHash);
         if (!user || !valid) return null;
 
-        await loginLimiter.reset(`email:${email}`);
+        await loginLimiter.reset(`email:${email}:${ip ?? "?"}`);
         return { id: user.id, email: user.email, name: user.name, image: user.image };
       },
     }),

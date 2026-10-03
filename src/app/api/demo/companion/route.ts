@@ -39,7 +39,7 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   return handleApi(async () => {
-    const limit = await limiter.consume(clientIpFrom(request.headers));
+    const limit = await limiter.consume(clientIpFrom(request.headers) ?? "anonymous");
     if (!limit.ok) throw new AppError("RATE_LIMITED", "잠시 후 다시 시도해 주세요.");
     const body = parseOrThrow(bodySchema, await readJson(request));
     const tz = DEMO_TRIP.timezone;

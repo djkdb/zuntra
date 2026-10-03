@@ -1,22 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local";
 import { Providers } from "@/components/providers";
 import { siteConfig } from "@/lib/site";
 import "./globals.css";
 
-// KS X 1001 subsets (~270KB each). Not preloaded: the system Korean font paints first
-// and Pretendard swaps in, which keeps LCP fast on mobile networks.
-const pretendard = localFont({
-  src: [
-    { path: "./fonts/Pretendard-Regular.subset.woff2", weight: "400", style: "normal" },
-    { path: "./fonts/Pretendard-SemiBold.subset.woff2", weight: "600", style: "normal" },
-    { path: "./fonts/Pretendard-Bold.subset.woff2", weight: "700", style: "normal" },
-  ],
-  display: "swap",
-  preload: false,
-  variable: "--font-pretendard",
-  fallback: ["Apple SD Gothic Neo", "Malgun Gothic", "system-ui", "sans-serif"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -51,7 +37,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ko" className={`${pretendard.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="ko" className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full bg-background font-sans text-foreground">
         <a
           href="#main"

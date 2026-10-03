@@ -20,7 +20,8 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
   const values = { name: String(formData.get("name") ?? ""), email: String(formData.get("email") ?? "") };
   if (!parsed.success) return { message: "입력값을 확인해 주세요.", fields: fieldErrors(parsed.error), values };
 
-  const limit = await signupLimiter.consume(`ip:${clientIpFrom(await headers())}`);
+  const ip = clientIpFrom(await headers());
+  const limit = ip ? await signupLimiter.consume(`ip:${ip}`) : { ok: true };
   if (!limit.ok) return { message: "가입 시도가 너무 많아요. 잠시 후 다시 시도해 주세요.", values };
 
   try {

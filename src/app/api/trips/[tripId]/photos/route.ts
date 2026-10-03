@@ -8,7 +8,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/trips/[trip
   return handleApi(async () => {
     const user = await requireApiUser();
     await guardWrite(request, user.id);
-    const length = Number(request.headers.get("content-length") ?? 0);
+    // Require a declared size so a chunked body cannot be buffered without limit.
+    const length = Number(request.headers.get("content-length"));
+    if (!Number.isFinite(length) || length <= 0) throw new AppError("VALIDATION", "사진 크기를 확인할 수 없어요.");
     if (length > MAX_PHOTO_BYTES + 64 * 1024) throw new AppError("VALIDATION", "사진은 8MB 이하만 올릴 수 있어요.");
     const { tripId } = await ctx.params;
     let form: FormData;

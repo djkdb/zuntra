@@ -67,8 +67,16 @@ export const signupLimiter = createMemoryRateLimiter({
 });
 export const apiWriteLimiter = createMemoryRateLimiter({ limit: 120, windowMs: 60_000 });
 
-export function clientIpFrom(headers: Headers): string {
+/**
+ * Best-effort client IP. Platform-set headers come first (Vercel overwrites these, so clients
+ * cannot spoof them); otherwise the right-most X-Forwarded-For hop, which was added by our own
+ * proxy rather than by the client. Returns null when unknown, so callers can skip IP limits
+ * instead of putting every user in one shared bucket.
+ */
+export function clientIpFrom(headers: Headers): string | null {
+  const platform = headers.get("x-vercel-forwarded-for") ?? headers.get("x-real-ip");
+  if (platform) return platform.split(",")[0]!.trim();
   const forwarded = headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]!.trim();
-  return headers.get("x-real-ip") ?? "unknown";
+  if (forwarded) return forwarded.split(",").map((s) => s.trim()).filter(Boolean).at(-1) ?? null;
+  return null;
 }

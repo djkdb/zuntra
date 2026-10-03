@@ -81,12 +81,27 @@ export interface RunAIOptions<T extends z.ZodType> extends Omit<AIRequest<T>, "m
   skipRateLimit?: boolean;
 }
 
-async function spentTodayUsd(userId: string): Promise<number> {
+/**
+ * Checks today's spend and records a PENDING usage row for the estimated cost in one
+ * transaction, serialised per user with a Postgres advisory lock (works across instances).
+ */
+async function reserveBudget(userId: string, feature: AIFeature, model: string, estimateUsd: number): Promise<string> {
   const since = new Date();
   since.setUTCHours(0, 0, 0, 0);
-  const agg = await db.aIUsageLog.aggregate({ where: { userId, createdAt: { gte: since } }, _sum: { costUsd: true } });
-  return Number(agg._sum.costUsd ?? 0);
+  return db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`ai-budget:${userId}`}))`;
+    const agg = await tx.aIUsageLog.aggregate({ where: { userId, createdAt: { gte: since } }, _sum: { costUsd: true } });
+    if (Number(agg._sum.costUsd ?? 0) + estimateUsd > env().AI_DAILY_BUDGET_USD) {
+      throw new AppError("RATE_LIMITED", "오늘 사용할 수 있는 AI 요청을 모두 사용했어요. 내일 다시 시도해 주세요.");
+    }
+    const row = await tx.aIUsageLog.create({
+      data: { userId, feature, model, costUsd: estimateUsd, latencyMs: 0, success: false, errorCode: "PENDING" },
+    });
+    return row.id;
+  });
 }
+
+export const reserveBudgetForTesting = reserveBudget;
 
 /**
  * The only way features call a model: rate limit → budget check → cache/dedupe → provider →
@@ -99,9 +114,6 @@ export async function runAI<T extends z.ZodType>(options: RunAIOptions<T>): Prom
   if (!options.skipRateLimit) {
     const limit = await limiterFor(options.feature).consume(`${options.userId}`);
     if (!limit.ok) throw new AppError("RATE_LIMITED", "AI 요청이 너무 많아요. 잠시 후 다시 시도해 주세요.");
-  }
-  if (ai.name === "openai" && (await spentTodayUsd(options.userId)) >= env().AI_DAILY_BUDGET_USD) {
-    throw new AppError("RATE_LIMITED", "오늘 사용할 수 있는 AI 요청을 모두 사용했어요. 내일 다시 시도해 주세요.");
   }
 
   const key = createHash("sha256")
@@ -122,6 +134,17 @@ export async function runAI<T extends z.ZodType>(options: RunAIOptions<T>): Prom
     const started = Date.now();
     let inputTokens = 0;
     let outputTokens = 0;
+    // Paid providers: reserve the worst-case cost first, so parallel requests cannot all slip
+    // under the daily budget before any of them is logged.
+    const reservationId =
+      ai.name === "openai"
+        ? await reserveBudget(
+            options.userId,
+            options.feature,
+            model,
+            estimateCostUsd(model, Math.ceil((options.system.length + options.input.length) / 2), options.maxOutputTokens ?? 4000),
+          )
+        : null;
     try {
       let result = await ai.generate({ ...options, model });
       inputTokens += result.usage.inputTokens;
@@ -141,11 +164,11 @@ export async function runAI<T extends z.ZodType>(options: RunAIOptions<T>): Prom
       }
       if (!parsed.success) throw new AIProviderError("BAD_OUTPUT", "AI output failed schema validation");
       cacheSet(key, parsed.data);
-      await logUsage(options, result.model, inputTokens, outputTokens, Date.now() - started, true, null, false);
+      await logUsage(options, result.model, inputTokens, outputTokens, Date.now() - started, true, null, false, reservationId);
       return parsed.data;
     } catch (error) {
       const code = error instanceof AIProviderError ? error.code : "UNKNOWN";
-      await logUsage(options, model, inputTokens, outputTokens, Date.now() - started, false, code, false);
+      await logUsage(options, model, inputTokens, outputTokens, Date.now() - started, false, code, false, reservationId);
       if (error instanceof AppError) throw error;
       // Never log prompts or user content — only the error class.
       console.error(`[ai] ${options.feature} failed: ${code}`);
@@ -175,23 +198,25 @@ async function logUsage(
   success: boolean,
   errorCode: string | null,
   cached: boolean,
+  reservationId: string | null = null,
 ) {
   try {
-    await db.aIUsageLog.create({
-      data: {
-        feature: options.feature,
-        userId: options.userId,
-        tripId: options.tripId ?? null,
-        model,
-        promptTokens: inputTokens,
-        completionTokens: outputTokens,
-        costUsd: cached ? 0 : estimateCostUsd(model, inputTokens, outputTokens),
-        latencyMs,
-        success,
-        errorCode,
-        cached,
-      },
-    });
+    const data = {
+      feature: options.feature,
+      userId: options.userId,
+      tripId: options.tripId ?? null,
+      model,
+      promptTokens: inputTokens,
+      completionTokens: outputTokens,
+      costUsd: cached ? 0 : estimateCostUsd(model, inputTokens, outputTokens),
+      latencyMs,
+      success,
+      errorCode,
+      cached,
+    };
+    // A reservation row is settled with the real usage.
+    if (reservationId) await db.aIUsageLog.update({ where: { id: reservationId }, data });
+    else await db.aIUsageLog.create({ data });
   } catch {
     // Usage logging must never break the feature.
   }

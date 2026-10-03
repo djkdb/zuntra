@@ -1,8 +1,10 @@
 import { type Page, expect } from "@playwright/test";
 
+/** Calendar date N days from today in Asia/Seoul (the browser time zone used by the tests). */
 export function isoDaysFromNow(days: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+  const d = new Date(`${today}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
 
