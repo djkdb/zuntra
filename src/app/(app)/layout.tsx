@@ -1,6 +1,7 @@
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { MobileHeader } from "@/components/layout/mobile-header";
+import { OfflineSupport } from "@/components/offline";
 import { QueryProvider } from "@/components/query-provider";
 import { todayInTimeZone } from "@/lib/dates";
 import { phaseOf, pickFocusTrip } from "@/lib/trips";
@@ -16,7 +17,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <QueryProvider userId={user.id}>
       <div className="flex min-h-dvh">
         <AppSidebar
-          user={{ name: user.name, email: user.email }}
+          user={{ name: user.name, email: user.email, isAdmin: user.role === "ADMIN" }}
           focusTrip={
             focus
               ? {
@@ -40,6 +41,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </main>
         </div>
         <BottomNav focusTripId={focus?.id ?? null} />
+      <OfflineSupport />
       </div>
     </QueryProvider>
   );

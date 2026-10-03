@@ -35,3 +35,13 @@ export async function requireOnboardedUser(): Promise<CurrentUser> {
   if (!user.onboardedAt) redirect("/onboarding");
   return user;
 }
+
+/** Admin-only pages and APIs. Non-admins get the 404 page so the area is not discoverable. */
+export async function requireAdmin(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    const { notFound } = await import("next/navigation");
+    notFound();
+  }
+  return user;
+}

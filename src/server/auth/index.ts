@@ -18,7 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Wrong passwords are expected traffic, not server errors; keep logs free of noise and user data.
     error(error) {
       if (error.name === "CredentialsSignin") return;
-      console.error(`[auth] ${error.name}: ${error.message}`);
+      console.error(`[auth] ${error.name}`);
     },
   },
   // The adapter is only used by OAuth providers added later; credentials sessions are JWTs.

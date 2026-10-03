@@ -16,7 +16,8 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "vercel-build": "prisma generate && prisma migrate deploy && next build",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "admin:grant": "tsx scripts/grant-admin.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

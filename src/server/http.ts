@@ -13,7 +13,9 @@ export function errorResponse(error: unknown): Response {
     return Response.json(body, { status: error.status });
   }
   // Unknown errors: log server-side without request payloads, return a generic message.
-  console.error("[api] unexpected error", error instanceof Error ? error.message : error);
+  // Messages from the DB driver can echo user input, so only the error class and code are logged.
+  const code = typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code) : "";
+  console.error(`[api] unexpected ${error instanceof Error ? error.name : typeof error}${code ? ` (${code})` : ""}`);
   const body: ApiErrorBody = { error: { code: "INTERNAL", message: "일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요." } };
   return Response.json(body, { status: 500 });
 }

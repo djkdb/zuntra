@@ -1,11 +1,10 @@
-import { LogOutIcon } from "lucide-react";
 import type { Metadata } from "next";
-import { signOutAction } from "@/app/(auth)/actions";
+import Link from "next/link";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import { PageHeader } from "@/components/layout/page-header";
 import { DeleteAccount } from "@/components/profile/delete-account";
 import { ProfileSettingsForm } from "@/components/profile/profile-settings-form";
 import { ThemeSelect } from "@/components/profile/theme-select";
-import { Button } from "@/components/ui/button";
 import { requireOnboardedUser } from "@/server/auth/session";
 import { getTravelProfile } from "@/server/services/user-service";
 
@@ -50,12 +49,12 @@ export default async function SettingsPage() {
           계정
         </h2>
         <div className="flex flex-wrap gap-3">
-          <form action={signOutAction}>
-            <Button type="submit" variant="outline">
-              <LogOutIcon data-icon="inline-start" aria-hidden />
-              로그아웃
-            </Button>
-          </form>
+          <SignOutButton />
+          {user.role === "ADMIN" ? (
+            <Link href="/admin" className="inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-primary hover:bg-muted">
+              관리자 대시보드
+            </Link>
+          ) : null}
           <DeleteAccount email={user.email} />
         </div>
       </section>

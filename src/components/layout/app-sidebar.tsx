@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, SettingsIcon } from "lucide-react";
+import { BarChart3Icon, PlusIcon, SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
@@ -23,7 +23,7 @@ export function AppSidebar({
   user,
   focusTrip,
 }: {
-  user: { name: string | null; email: string };
+  user: { name: string | null; email: string; isAdmin?: boolean };
   focusTrip: SidebarTrip | null;
 }) {
   const pathname = usePathname();
@@ -85,6 +85,12 @@ export function AppSidebar({
       ) : null}
 
       <div className="mt-auto space-y-1">
+        {user.isAdmin ? (
+          <Link href="/admin" className={linkClass(pathname.startsWith("/admin"))}>
+            <BarChart3Icon className="size-4" aria-hidden />
+            관리자
+          </Link>
+        ) : null}
         <Link href="/settings" className={linkClass(pathname.startsWith("/settings"))}>
           <SettingsIcon className="size-4" aria-hidden />
           설정

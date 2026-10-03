@@ -36,6 +36,12 @@ const item = (
 
 const h = (hh: number, mm = 0) => hh * 60 + mm;
 
+/**
+ * The demo runs on a fixed clock (Day 2, 15:50 in Tokyo) so it always shows the most
+ * interesting moment of the day, whatever time the visitor opens it.
+ */
+export const DEMO_NOW_MINUTE = 15 * 60 + 50;
+
 export const DEMO_TRIP = {
   id: "demo-tokyo",
   title: "Tokyo 5 Days",

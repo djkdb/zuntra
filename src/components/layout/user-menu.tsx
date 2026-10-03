@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { initialsOf } from "@/lib/format";
+import { clearLocalTripData } from "@/components/offline";
 
 export function UserMenu({ name, email, compact }: { name: string | null; email: string; compact?: boolean }) {
   return (
@@ -42,7 +43,7 @@ export function UserMenu({ name, email, compact }: { name: string | null; email:
             설정
           </Link>
         </DropdownMenuItem>
-        <form action={signOutAction}>
+        <form action={signOutAction} onSubmit={() => clearLocalTripData()}>
           <DropdownMenuItem asChild>
             <button type="submit" className="w-full">
               <LogOutIcon aria-hidden />

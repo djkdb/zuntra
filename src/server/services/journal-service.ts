@@ -152,6 +152,7 @@ export async function uploadPhoto(
   if (file.bytes.byteLength > MAX_PHOTO_BYTES) throw new AppError("VALIDATION", "사진은 8MB 이하만 올릴 수 있어요.");
   const type = detectImageType(file.bytes);
   if (!type) throw new AppError("VALIDATION", "JPG, PNG, WEBP 사진만 올릴 수 있어요.");
+  await purgeOrphanPhotos(tripId, userId);
   const key = `${tripId.toLowerCase()}/${createId()}.${type}`;
   const contentType = { webp: "image/webp", jpg: "image/jpeg", png: "image/png" }[type];
   await getStorage().put(key, file.bytes, contentType);
@@ -178,4 +179,19 @@ export async function readPhoto(photoId: string, userId: string) {
   const object = await getStorage().get(photo.storageKey);
   if (!object) throw notFound("사진");
   return object;
+}
+
+/**
+ * Photos uploaded but never attached to an entry (abandoned drafts) are removed after a day,
+ * so storage does not fill with unreferenced personal images.
+ */
+async function purgeOrphanPhotos(tripId: string, userId: string) {
+  const stale = await db.tripPhoto.findMany({
+    where: { tripId, uploaderId: userId, journalEntryId: null, createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+    select: { id: true, storageKey: true },
+    take: 50,
+  });
+  if (stale.length === 0) return;
+  await db.tripPhoto.deleteMany({ where: { id: { in: stale.map((p) => p.id) } } });
+  await getStorage().remove(stale.map((p) => p.storageKey)).catch(() => {});
 }
