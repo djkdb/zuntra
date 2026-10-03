@@ -165,9 +165,9 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
             </p>
           </div>
           {editable ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap [&>button]:min-w-0">
               {renderDayTools?.({ day, editable })}
-              <Button onClick={() => setDialog({ mode: "create" })}>
+              <Button className="hidden sm:inline-flex" onClick={() => setDialog({ mode: "create" })}>
                 <PlusIcon data-icon="inline-start" aria-hidden />
                 일정 추가
               </Button>

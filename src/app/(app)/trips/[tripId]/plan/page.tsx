@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PlanEditor } from "@/components/plan/plan-editor";
+import { PlanPageClient } from "@/components/plan/plan-page-client";
 import { requireOnboardedUser } from "@/server/auth/session";
 import { getItinerary } from "@/server/services/itinerary-service";
 import { getTripForPage } from "@/server/services/trip-queries";
@@ -13,5 +13,5 @@ export default async function TripPlanPage(props: PageProps<"/trips/[tripId]/pla
   // Resolves to the 404 page for non-members before anything else is loaded.
   await getTripForPage(tripId, user.id);
   const itinerary = await getItinerary(tripId, user.id);
-  return <PlanEditor tripId={tripId} initialData={itinerary} initialDayNumber={dayNumber} />;
+  return <PlanPageClient tripId={tripId} initialData={itinerary} initialDayNumber={dayNumber} />;
 }

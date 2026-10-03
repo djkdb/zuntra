@@ -164,7 +164,7 @@ export async function updateTrip(tripId: string, userId: string, rawPatch: Updat
   await db.$transaction(async (tx) => {
     const current = await tx.trip.findUniqueOrThrow({
       where: { id: tripId },
-      select: { startDate: true, endDate: true, currency: true },
+      select: { startDate: true, endDate: true, currency: true, destination: true },
     });
     const startDate = patch.startDate ?? fromDbDate(current.startDate);
     const endDate = patch.endDate ?? fromDbDate(current.endDate);
@@ -188,6 +188,8 @@ export async function updateTrip(tripId: string, userId: string, rawPatch: Updat
       data: {
         title: patch.title,
         destination: patch.destination,
+        // A new destination needs a new centre; it is re-geocoded lazily.
+        ...(patch.destination && patch.destination !== current.destination ? { destinationLat: null, destinationLng: null } : {}),
         timezone: patch.timezone,
         startDate: toDbDate(startDate),
         endDate: toDbDate(endDate),
@@ -259,4 +261,23 @@ export async function deleteTrip(tripId: string, userId: string) {
   await assertTripAccess(tripId, userId, "OWNER");
   await db.trip.delete({ where: { id: tripId } });
   await track("delete_trip", { userId });
+}
+
+/**
+ * Resolves and stores the destination centre (used by weather, maps and the planner).
+ * Best-effort: returns null when the geocoder cannot find the destination.
+ */
+export async function ensureTripCenter(tripId: string): Promise<{ lat: number; lng: number } | null> {
+  const trip = await db.trip.findUniqueOrThrow({
+    where: { id: tripId },
+    select: { destination: true, destinationLat: true, destinationLng: true },
+  });
+  if (trip.destinationLat !== null && trip.destinationLng !== null) {
+    return { lat: trip.destinationLat, lng: trip.destinationLng };
+  }
+  const { getMapsProvider } = await import("@/server/integrations/maps");
+  const found = await getMapsProvider().geocodeCity(trip.destination);
+  if (!found) return null;
+  await db.trip.update({ where: { id: tripId }, data: { destinationLat: found.lat, destinationLng: found.lng } });
+  return { lat: found.lat, lng: found.lng };
 }

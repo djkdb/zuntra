@@ -7,6 +7,7 @@ export type AppErrorCode =
   | "VALIDATION"
   | "CONFLICT"
   | "RATE_LIMITED"
+  | "AI_FAILED"
   | "INTERNAL";
 
 const STATUS: Record<AppErrorCode, number> = {
@@ -16,6 +17,7 @@ const STATUS: Record<AppErrorCode, number> = {
   VALIDATION: 400,
   CONFLICT: 409,
   RATE_LIMITED: 429,
+  AI_FAILED: 502,
   INTERNAL: 500,
 };
 
