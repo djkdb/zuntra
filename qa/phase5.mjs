@@ -1,0 +1,31 @@
+import { api, iso, launch, newUser, BASE } from "./lib.mjs";
+const S = process.argv[2];
+const browser = await launch();
+for (const kind of ["mobile", "desktop"]) {
+  const { ctx, page } = await newUser(browser, kind);
+  page.on("console", (m) => { if (m.type() === "error") console.log(`[${kind}]`, m.text().slice(0, 300)); });
+  const trip = await api(page, "POST", "/api/trips", { title: "도쿄 4박 5일", destination: "도쿄", timezone: "Asia/Tokyo", startDate: iso(0), endDate: iso(4), travelerCount: 2, currency: "KRW", budgetAmount: 1500000, styles: ["FOOD", "PHOTO"] });
+  await api(page, "POST", `/api/trips/${trip.id}/plan/generate`, { mode: "fill_empty" });
+  const exp = (title, category, amount, d) => api(page, "POST", `/api/trips/${trip.id}/expenses`, { title, category, amount, date: iso(d) });
+  await exp("호텔 4박", "LODGING", 480000, 0); await exp("이치란 라멘", "FOOD", 28000, 0); await exp("스시 오마카세", "FOOD", 190000, 1); await exp("스카이트리", "SIGHTSEEING", 62000, 1); await exp("지하철 패스", "TRANSPORT", 30000, 0); await exp("기념품", "SHOPPING", 45000, 2);
+  await page.goto(`${BASE}/trips/${trip.id}/map`);
+  await page.waitForTimeout(3500);
+  await page.locator(".leaflet-marker-icon").nth(1).click().catch(() => {});
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${S}/${kind}-p5-map.png`, fullPage: true });
+  await page.goto(`${BASE}/trips/${trip.id}/budget`);
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: `${S}/${kind}-p5-budget.png`, fullPage: true });
+  await page.goto(`${BASE}/trips/${trip.id}/packing`);
+  await page.getByRole("button", { name: "AI로 체크리스트 만들기" }).click();
+  await page.getByText(/준비물 \d+개를 추가했어요/).waitFor({ timeout: 15000 });
+  await page.getByRole("checkbox", { name: "여권 챙김" }).click();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${S}/${kind}-p5-packing.png`, fullPage: true });
+  await page.goto(`${BASE}/trips/${trip.id}`);
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: `${S}/${kind}-p5-overview.png`, fullPage: true });
+  await ctx.close();
+}
+await browser.close();
+console.log("done");

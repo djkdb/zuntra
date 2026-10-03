@@ -382,3 +382,24 @@ export async function updateDay(tripId: string, userId: string, dayId: string, r
 }
 
 export { loadDay, findTripItem, findTripDay, renumber, upsertPlace, estimateMissingTravel };
+
+/** Finds coordinates for a stop that has none (maps provider, biased to the destination). */
+export async function geocodeItem(tripId: string, userId: string, itemId: string) {
+  await assertTripAccess(tripId, userId, "EDITOR");
+  const item = await findTripItem(db, tripId, itemId);
+  const { ensureTripCenter } = await import("./trip-service");
+  const { getMapsProvider } = await import("@/server/integrations/maps");
+  const center = await ensureTripCenter(tripId);
+  const trip = await db.trip.findUniqueOrThrow({ where: { id: tripId }, select: { destination: true } });
+  const query = item.place?.address || `${item.title} ${trip.destination}`;
+  const found = await getMapsProvider().geocodePlace(query, center);
+  if (!found) {
+    const { AppError } = await import("@/server/errors");
+    throw new AppError("NOT_FOUND", "위치를 찾지 못했어요. 주소를 직접 입력해 주세요.");
+  }
+  return updateItem(tripId, userId, itemId, {
+    latitude: found.lat,
+    longitude: found.lng,
+    address: item.place?.address ?? found.address.slice(0, 200),
+  });
+}

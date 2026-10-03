@@ -4,7 +4,7 @@ import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { signInSchema } from "@/lib/validation/auth";
 import { db } from "@/server/db";
-import { clientIpFrom, loginLimiter } from "@/server/rate-limit";
+import { clientIpFrom, loginIpLimiter, loginLimiter } from "@/server/rate-limit";
 import { authConfig } from "./config";
 import { verifyPassword } from "./password";
 
@@ -37,7 +37,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ip = request ? clientIpFrom(request.headers) : "unknown";
         const [byEmail, byIp] = await Promise.all([
           loginLimiter.consume(`email:${email}`),
-          loginLimiter.consume(`ip:${ip}`),
+          loginIpLimiter.consume(`ip:${ip}`),
         ]);
         if (!byEmail.ok || !byIp.ok) throw new RateLimitedSignin();
 

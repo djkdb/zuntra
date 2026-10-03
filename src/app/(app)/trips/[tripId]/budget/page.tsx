@@ -1,23 +1,15 @@
-import { WalletIcon } from "lucide-react";
 import type { Metadata } from "next";
-import { UpcomingFeature } from "@/components/states/upcoming-feature";
+import { BudgetPageClient } from "@/components/budget/budget-page-client";
+import { requireOnboardedUser } from "@/server/auth/session";
+import { getBudget } from "@/server/services/budget-service";
+import { getTripForPage } from "@/server/services/trip-queries";
 
 export const metadata: Metadata = { title: "경비" };
 
-export default async function TripBudgetPage(props: PageProps<"/trips/[tripId]/budget">) {
-  // Access is enforced by the trip layout (404 for non-members).
+export default async function BudgetPage(props: PageProps<"/trips/[tripId]/budget">) {
   const { tripId } = await props.params;
-  return (
-    <UpcomingFeature
-      icon={WalletIcon}
-      tripId={tripId}
-      title="여행 경비"
-      description="지출을 기록하면 예산 대비 사용 현황과 카테고리별 분석을 보여줘요."
-      points={[
-          "숙박·교통·식비·관광·쇼핑·기타",
-          "예산 사용률과 1인당 비용",
-          "AI 지출 분석",
-      ]}
-    />
-  );
+  const user = await requireOnboardedUser();
+  await getTripForPage(tripId, user.id);
+  const data = await getBudget(tripId, user.id);
+  return <BudgetPageClient tripId={tripId} initialData={data} />;
 }

@@ -9,7 +9,7 @@ export async function launch() {
 }
 
 export async function newUser(browser, kind = "mobile") {
-  const ctx = await browser.newContext({ ...(kind === "mobile" ? devices["Pixel 7"] : { viewport: { width: 1440, height: 900 } }), locale: "ko-KR", timezoneId: "Asia/Seoul" });
+  const ctx = await browser.newContext({ ...(kind === "mobile" ? devices["Pixel 7"] : { viewport: { width: 1440, height: 900 } }), locale: "ko-KR", timezoneId: "Asia/Seoul", ignoreHTTPSErrors: true });
   const page = await ctx.newPage();
   await page.goto(BASE + "/signup");
   await page.getByLabel("이름").fill("서연");

@@ -51,8 +51,14 @@ const envLimit = (name: string, fallback: number) => {
   return Number.isInteger(value) && value > 0 ? value : fallback;
 };
 
+/** Per account: stops password guessing against one email. */
 export const loginLimiter = createMemoryRateLimiter({
   limit: envLimit("RATE_LIMIT_LOGIN_PER_15MIN", 10),
+  windowMs: 15 * 60_000,
+});
+/** Per IP: looser, because many people can share one IP (offices, mobile carriers). */
+export const loginIpLimiter = createMemoryRateLimiter({
+  limit: envLimit("RATE_LIMIT_LOGIN_IP_PER_15MIN", 60),
   windowMs: 15 * 60_000,
 });
 export const signupLimiter = createMemoryRateLimiter({

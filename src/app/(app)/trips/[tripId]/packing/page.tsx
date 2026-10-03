@@ -1,23 +1,14 @@
-import { PackageCheckIcon } from "lucide-react";
 import type { Metadata } from "next";
-import { UpcomingFeature } from "@/components/states/upcoming-feature";
+import { PackingClient } from "@/components/packing/packing-client";
+import { requireOnboardedUser } from "@/server/auth/session";
+import { getPacking } from "@/server/services/packing-service";
+import { getTripForPage } from "@/server/services/trip-queries";
 
 export const metadata: Metadata = { title: "준비물" };
 
-export default async function TripPackingPage(props: PageProps<"/trips/[tripId]/packing">) {
-  // Access is enforced by the trip layout (404 for non-members).
+export default async function PackingPage(props: PageProps<"/trips/[tripId]/packing">) {
   const { tripId } = await props.params;
-  return (
-    <UpcomingFeature
-      icon={PackageCheckIcon}
-      tripId={tripId}
-      title="준비물 체크리스트"
-      description="여행지, 기간, 날씨, 취향에 맞춘 준비물을 AI가 만들어 줘요."
-      points={[
-          "기본·날씨 기반·맞춤 준비물",
-          "체크 상태 저장",
-          "직접 추가·삭제",
-      ]}
-    />
-  );
+  const user = await requireOnboardedUser();
+  await getTripForPage(tripId, user.id);
+  return <PackingClient tripId={tripId} initialData={await getPacking(tripId, user.id)} />;
 }

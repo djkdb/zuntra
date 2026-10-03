@@ -2,6 +2,7 @@
 
 import { AuthError } from "next-auth";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { type FormState, safeRedirectPath } from "@/lib/action-state";
 import { fieldErrors } from "@/lib/validation/common";
 import { signInSchema, signUpSchema } from "@/lib/validation/auth";
@@ -29,12 +30,18 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
     throw error;
   }
 
-  // Throws a redirect on success; must stay outside the try/catch above.
-  await signIn("credentials", {
-    email: parsed.data.email,
-    password: parsed.data.password,
-    redirectTo: "/onboarding",
-  });
+  try {
+    // Throws a redirect on success, which must propagate.
+    await signIn("credentials", {
+      email: parsed.data.email,
+      password: parsed.data.password,
+      redirectTo: "/onboarding",
+    });
+  } catch (error) {
+    // The account exists; if automatic sign-in is refused (e.g. rate limited), send them to log in.
+    if (error instanceof AuthError) redirect("/login?registered=1");
+    throw error;
+  }
   return { ok: true };
 }
 
