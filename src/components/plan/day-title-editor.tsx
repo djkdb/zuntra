@@ -23,7 +23,7 @@ export function DayTitleEditor({ title, editable, onSave }: { title: string | nu
         aria-label="이 날의 제목"
         value={draft}
         maxLength={40}
-        placeholder="예: 교토 · 아라시야마"
+        placeholder="예: 구시가지 · 야시장"
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {

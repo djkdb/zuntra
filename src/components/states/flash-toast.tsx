@@ -17,6 +17,7 @@ export function FlashToast({ message }: { message: string }) {
   useEffect(() => {
     if (shown.current) return;
     shown.current = true;
+    window.scrollTo({ top: 0 });
     toast.success(message);
     const next = new URLSearchParams(searchParams);
     for (const key of ["created", "updated", "deleted", "welcome"]) next.delete(key);

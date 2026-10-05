@@ -10,7 +10,7 @@ export interface PlannerContext {
   startDate: string;
   endDate: string;
   totalDays: number;
-  days: { dayNumber: number; date: string; rainy: boolean; isFirst: boolean; isLast: boolean }[];
+  days: { dayNumber: number; date: string; rainy: boolean; isFirst: boolean; isLast: boolean; /** The traveller's own name for the day, often its city. */ hint?: string | null }[];
   styles: TravelStyle[];
   pace: TravelPace;
   budgetLevel: BudgetLevel;

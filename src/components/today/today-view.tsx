@@ -107,7 +107,7 @@ export function TodayView({
               <p className="text-lg leading-none font-semibold">{Math.round(weather.tempMax)}°C</p>
               <p className="text-[11px]">
                 {weather.label}
-                {weather.precipitation !== null && weather.precipitation >= 30 ? ` · 비 ${weather.precipitation}%` : ""}
+                {weather.precipitation !== null && weather.precipitation >= 30 ? ` · 강수 ${weather.precipitation}%` : ""}
               </p>
             </div>
           </div>

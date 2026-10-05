@@ -25,3 +25,6 @@ export function josa(word: string, pair: Pair): string {
 
 /** `word` followed by its particle: withJosa("₩7,500", "을/를") → "₩7,500을". */
 export const withJosa = (word: string, pair: Pair) => `${word}${josa(word, pair)}`;
+
+/** `word` followed by the polite copula: withCopula("식비") → "식비예요", withCopula("교통") → "교통이에요". */
+export const withCopula = (word: string) => `${word}${finalConsonant(word) === 0 ? "예요" : "이에요"}`;

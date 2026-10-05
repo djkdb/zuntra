@@ -2,7 +2,7 @@ import "server-only";
 import type { ExpenseCategory, Prisma } from "@/generated/prisma/client";
 import { EXPENSE_CATEGORIES, type BudgetSummaryView, type ExpenseView } from "@/lib/budget";
 import { diffDaysIso, fromDbDate, todayInTimeZone, toDbDate } from "@/lib/dates";
-import { convertCurrency, localCurrencyFor, referenceRate } from "@/lib/fx";
+import { convertCurrency, localCurrencyFor, referenceRate, roundForCurrency } from "@/lib/fx";
 import { guessTimeZone } from "@/lib/timezone-guess";
 import { budgetSchema, expensePatchSchema, expenseSchema } from "@/lib/validation/budget";
 import { analyzeSpending } from "@/server/ai/trip-analyzer";
@@ -109,12 +109,31 @@ export type BudgetData = Awaited<ReturnType<typeof getBudget>>;
 /** Amount in the trip currency (+ what was paid) for an expense entered in any currency. */
 function inTripCurrency(amount: number, currency: string | undefined, fxRate: number | undefined, tripCurrency: string) {
   if (!currency || currency === tripCurrency) {
-    return { amount, originalAmount: null, originalCurrency: null, fxRate: null };
+    // Round the way the currency is written: ₩0.4 is not an expense.
+    const rounded = roundForCurrency(amount, tripCurrency);
+    if (rounded <= 0) throw new AppError("VALIDATION", "금액을 확인해 주세요.", { amount: "금액은 0보다 커야 해요." });
+    return { amount: rounded, originalAmount: null, originalCurrency: null, fxRate: null };
   }
   const rate = fxRate ?? referenceRate(currency, tripCurrency);
   const converted = convertCurrency(amount, currency, tripCurrency, rate);
   if (converted <= 0) throw new AppError("VALIDATION", "금액을 확인해 주세요.", { amount: "환산한 금액이 0이에요. 금액이나 환율을 확인해 주세요." });
   return { amount: converted, originalAmount: amount, originalCurrency: currency, fxRate: rate };
+}
+
+/**
+ * A PATCH touching amount, currency or rate. Unmentioned parts keep their stored values, so
+ * "amount: 2000" on a ¥1,000 expense means ¥2,000 at the same rate, not ₩2,000.
+ */
+function convertedPatch(
+  input: { amount?: number; currency?: string; fxRate?: number },
+  existing: { amount: Prisma.Decimal; currency: string; originalAmount: Prisma.Decimal | null; originalCurrency: string | null; fxRate: Prisma.Decimal | null },
+) {
+  if (input.amount === undefined && input.currency === undefined && input.fxRate === undefined) return {};
+  const currency = input.currency ?? existing.originalCurrency ?? existing.currency;
+  const sameCurrency = currency === (existing.originalCurrency ?? existing.currency);
+  const amount = input.amount ?? Number(existing.originalAmount ?? existing.amount);
+  const rate = input.fxRate ?? (sameCurrency && existing.fxRate !== null ? Number(existing.fxRate) : undefined);
+  return inTripCurrency(amount, currency, rate, existing.currency);
 }
 
 /** Expenses may fall a week before/after the trip (deposits, late refunds) but not in 1999. */
@@ -176,7 +195,7 @@ export async function updateExpense(tripId: string, userId: string, expenseId: s
     data: {
       title: input.title,
       category: input.category,
-      ...(input.amount !== undefined ? inTripCurrency(input.amount, input.currency, input.fxRate, existing.currency) : {}),
+      ...convertedPatch(input, existing),
       note: input.note,
       spentAt: input.date ? spentAtFor(input.date) : undefined,
       dayId: input.date ? (day?.id ?? null) : undefined,

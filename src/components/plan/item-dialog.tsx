@@ -107,7 +107,7 @@ export function ItemDialog({ open, onOpenChange, mode, dayLabel, currency, initi
         <form onSubmit={submit} className="space-y-5" noValidate>
           <FormMessage message={message} />
           <Field label="장소 또는 할 일" error={errors.title}>
-            {(p) => <Input {...p} name="title" defaultValue={initial?.title ?? ""} maxLength={80} placeholder="예: 시부야 스카이" required autoFocus />}
+            {(p) => <Input {...p} name="title" defaultValue={initial?.title ?? ""} maxLength={80} placeholder="예: 전망대, 점심 식당" required autoFocus />}
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="카테고리" error={errors.category}>

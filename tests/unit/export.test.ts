@@ -23,7 +23,7 @@ describe("trip export", () => {
     const ics = itineraryToIcs(itinerary);
     expect(ics).toContain("DTSTART:20261103T010000Z"); // 10:00 in Tokyo
     expect(ics).toContain("DTEND:20261103T023000Z");
-    expect(ics).toContain("SUMMARY:센소지\; 아사쿠사");
+    expect(ics).toContain(String.raw`SUMMARY:센소지\; 아사쿠사`);
     expect(ics.startsWith("BEGIN:VCALENDAR\r\n")).toBe(true);
   });
   it("escapes CSV and neutralises formulas", () => {

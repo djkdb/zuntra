@@ -28,7 +28,7 @@ export function PlanPageClient({ tripId, initialData, initialDayNumber }: { trip
             {day.items.length > 0 ? (
               <Button variant="outline" onClick={() => setOpen({ kind: "reschedule", day })}>
                 <RefreshCwIcon data-icon="inline-start" aria-hidden />
-                <span className="truncate">AI로 일정 다시 맞추기</span>
+                <span className="truncate">AI 일정 조정</span>
               </Button>
             ) : null}
             <Button

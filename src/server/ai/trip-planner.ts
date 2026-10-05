@@ -92,7 +92,14 @@ export async function generatePlan(tripId: string, userId: string, raw: unknown)
       existing: [...existingTitles, ...generated.flatMap((d) => d.items.map((it) => it.title))],
       days: chunk.map((d) => {
         const date = fromDbDate(d.date);
-        return { dayNumber: d.dayNumber, date, rainy: rainy.has(date), isFirst: d.dayNumber === 1, isLast: d.dayNumber === totalDays };
+        return {
+          dayNumber: d.dayNumber,
+          date,
+          rainy: rainy.has(date),
+          isFirst: d.dayNumber === 1,
+          isLast: d.dayNumber === totalDays,
+          hint: d.titleByUser ? d.title : null,
+        };
       }),
     };
     const draft = await runAI({
@@ -133,7 +140,8 @@ export async function generatePlan(tripId: string, userId: string, raw: unknown)
         const plan = byNumber.get(day.dayNumber);
         if (!plan || plan.items.length === 0) continue;
         await tx.itineraryItem.deleteMany({ where: { dayId: day.id } });
-        await tx.day.update({ where: { id: day.id }, data: { title: plan.title || null } });
+        // A day the traveller named keeps its name; only AI-made titles are replaced.
+        if (!day.titleByUser) await tx.day.update({ where: { id: day.id }, data: { title: plan.title || null } });
         for (const [position, item] of plan.items.entries()) {
           const place =
             item.address || item.latitude !== null

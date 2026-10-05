@@ -382,7 +382,7 @@ export async function updateDay(tripId: string, userId: string, dayId: string, r
   await assertTripAccess(tripId, userId, "EDITOR");
   const input = parseOrThrow(updateDaySchema, raw);
   await findTripDay(db, tripId, dayId);
-  await db.day.update({ where: { id: dayId }, data: { title: input.title || null, notes: input.notes || null } });
+  await db.day.update({ where: { id: dayId }, data: { title: input.title || null, titleByUser: Boolean(input.title), notes: input.notes || null } });
   return { days: [await loadDay(db, dayId)] };
 }
 

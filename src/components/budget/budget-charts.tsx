@@ -52,7 +52,8 @@ export function BudgetMeter({ summary }: { summary: BudgetSummaryView }) {
       {summary.planned > 0 && !isFinal ? (
         // The plan's own estimates against the budget: answers "can I afford this itinerary?"
         <p className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm">
-          일정에 적힌 예상 비용은 <span className="font-medium">{formatMoney(summary.planned, currency)}</span>
+          일정에 적힌 입장료·식비 예상은 <span className="font-medium">{formatMoney(summary.planned, currency)}</span>
+          <span className="text-muted-foreground"> ({travelerCount > 1 ? `${travelerCount}명 합계, ` : ""}항공·숙소 제외)</span>
           {total !== null ? (
             summary.planned > total ? (
               <span className="text-destructive">{josa(formatMoney(summary.planned, currency), "으로/로")} 예산을 {formatMoney(summary.planned - total, currency)} 넘어요.</span>

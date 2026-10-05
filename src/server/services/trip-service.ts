@@ -183,6 +183,13 @@ export async function updateTrip(tripId: string, userId: string, rawPatch: Updat
     if (datesChanged) await reconcileDays(tx, tripId, startDate, endDate);
 
     const currency = patch.currency ?? current.currency;
+    // Recorded expenses (and itinerary estimates) are amounts in the old currency; relabelling
+    // them would silently change every total. Ask for a new trip instead of guessing a rate.
+    if (currency !== current.currency && (await tx.expense.count({ where: { tripId } })) > 0) {
+      throw new AppError("VALIDATION", "지출이 기록된 여행은 통화를 바꿀 수 없어요.", {
+        currency: "지출이 있는 여행은 통화를 바꿀 수 없어요. 다른 통화로 쓴 돈은 지출을 기록할 때 통화를 골라 주세요.",
+      });
+    }
     await tx.trip.update({
       where: { id: tripId },
       data: {

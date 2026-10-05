@@ -134,11 +134,13 @@ function reasonFor(poi: Poi, kind: SlotKind, ctx: PlannerContext, rainy: boolean
 }
 
 export function mockPlan(ctx: PlannerContext): PlanDraft {
-  const city = findCity(ctx.destination) ?? genericCity(ctx);
+  const tripCity = findCity(ctx.destination) ?? genericCity(ctx);
   const used = new Set(ctx.existing.map((t) => t.trim()));
   const days: PlanDraft["days"] = [];
 
   for (const day of ctx.days) {
+    // A day the traveller titled with a city ("교토 · 아라시야마") is planned in that city.
+    const city = (day.hint ? findCity(day.hint) : undefined) ?? tripCity;
     let slots = SLOTS[ctx.pace];
     const items: PlanItemDraft[] = [];
     let prev: Poi | null = null;
@@ -146,6 +148,23 @@ export function mockPlan(ctx: PlannerContext): PlanDraft {
 
     if (day.isFirst && ctx.totalDays > 1) {
       slots = slots.filter((s) => s.at >= h(13));
+      // Arrival: from the airport into town, then drop the bags.
+      if (city.airport) {
+        items.push({
+          title: `${city.airport.name} 도착 · 시내로 이동`,
+          category: "AIRPORT",
+          startTime: "11:30",
+          durationMinutes: 60,
+          transportMode: "TRANSIT",
+          travelMinutesFromPrev: null,
+          estimatedCost: null,
+          address: city.airport.address,
+          latitude: city.airport.lat,
+          longitude: city.airport.lng,
+          isIndoor: true,
+          note: "입국 심사와 짐 찾기 후 공항철도나 리무진 버스로 시내에 들어가요. 항공편 시간에 맞춰 조정해 주세요.",
+        });
+      }
       items.push({
         title: "숙소 체크인 · 짐 맡기기",
         category: "LODGING",
@@ -205,7 +224,8 @@ export function mockPlan(ctx: PlannerContext): PlanDraft {
       const travel = prev ? estimateTravelMinutes(prev, city.airport, "TRANSIT") : null;
       const start = Math.ceil(Math.max(clock + (travel ?? 0), h(13)) / 5) * 5;
       items.push({
-        title: `${city.airport.name} 이동`,
+        // The ride itself is the travel leg before this item; this is the time at the airport.
+        title: `${city.airport.name} 도착 · 출국 수속`,
         category: "AIRPORT",
         startTime: formatMinute(start),
         durationMinutes: 120,
@@ -216,7 +236,7 @@ export function mockPlan(ctx: PlannerContext): PlanDraft {
         latitude: city.airport.lat,
         longitude: city.airport.lng,
         isIndoor: true,
-        note: "출국 2시간 전 도착을 기준으로 잡았어요.",
+        note: "국제선은 출발 2시간 전 도착이 기본이에요. 항공편 시간에 맞춰 조정해 주세요.",
       });
     }
 

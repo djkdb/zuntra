@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { ApiError } from "@/lib/api-client";
+import { withJosa } from "@/lib/korean";
 import { EmptyState } from "@/components/states/empty-state";
 import { ErrorState } from "@/components/states/error-state";
 import { Button } from "@/components/ui/button";
@@ -104,12 +106,31 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
 
   const submitDraft = async (draft: ItemDraft) => {
     if (dialog?.mode === "edit") {
-      // Send only what changed, plus the version the dialog was opened on, so a concurrent edit
-      // to another field is kept and a conflicting one is reported instead of overwritten.
-      const before: Record<string, unknown> = { ...dialog.item };
-      const patch = Object.fromEntries(Object.entries(draft).filter(([k, v]) => (before[k] ?? null) !== v));
-      if (Object.keys(patch).length === 0) return;
-      await m.updateItem.mutateAsync({ itemId: dialog.item.id, patch: { ...patch, expectedUpdatedAt: dialog.item.updatedAt } });
+      const base = dialog.item;
+      // Send only what changed, plus the version the dialog was opened on.
+      const changes = changedFields(draft, base);
+      if (Object.keys(changes).length === 0) return;
+      try {
+        await m.updateItem.mutateAsync({ itemId: base.id, patch: { ...changes, expectedUpdatedAt: base.updatedAt } });
+      } catch (error) {
+        if (!(error instanceof ApiError && error.status === 409)) throw error;
+        // Someone saved first. Different fields merge on their own; the same field is the
+        // user's call, so show the latest version and let the next save be deliberate.
+        const fresh = await query.refetch();
+        const latest = fresh.data?.days.flatMap((d) => d.items).find((i) => i.id === base.id);
+        if (!latest) throw new ApiError("NOT_FOUND", "이 일정은 다른 곳에서 삭제됐어요.", 404);
+        const before: Record<string, unknown> = { ...base };
+        const after: Record<string, unknown> = { ...latest };
+        const clashes = Object.keys(changes).filter((k) => (after[k] ?? null) !== (before[k] ?? null));
+        if (clashes.length === 0) {
+          await m.updateItem.mutateAsync({ itemId: base.id, patch: { ...changes, expectedUpdatedAt: latest.updatedAt } });
+          toast.success("다른 곳에서 바뀐 내용과 합쳐서 저장했어요.");
+          return;
+        }
+        setDialog({ mode: "edit", item: latest });
+        const names = clashes.map((k) => FIELD_LABELS[k] ?? k).join(", ");
+        throw new ApiError("CONFLICT", `${withJosa(names, "을/를")} 다른 곳에서 먼저 바꿨어요. 확인하고 다시 저장하면 지금 입력한 내용으로 바뀌어요.`, 409);
+      }
       toast.success("일정을 수정했어요.");
     } else {
       await m.addItem.mutateAsync({ dayId: day.id, ...draft });
@@ -121,7 +142,7 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
   const deleteWithUndo = (item: ItineraryItemView) =>
     m.deleteItem.mutate(item.id, {
       onSuccess: () =>
-        toast.success(`‘${item.title}’ 일정을 지웠어요.`, {
+        toast(`‘${item.title}’ 일정을 지웠어요.`, {
           duration: 6000,
           action: {
             label: "되돌리기",
@@ -334,6 +355,23 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
 
     </div>
   );
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  title: "이름",
+  category: "분류",
+  startMinute: "시작 시간",
+  durationMinutes: "체류시간",
+  transportMode: "이동 수단",
+  travelMinutesFromPrev: "이동시간",
+  estimatedCost: "예상 비용",
+  address: "주소",
+  note: "메모",
+};
+
+function changedFields(draft: ItemDraft, item: ItineraryItemView): Partial<ItemDraft> {
+  const before: Record<string, unknown> = { ...item };
+  return Object.fromEntries(Object.entries(draft).filter(([k, v]) => (before[k] ?? null) !== v)) as Partial<ItemDraft>;
 }
 
 function TravelLeg({ item }: { item: ItineraryItemView }) {

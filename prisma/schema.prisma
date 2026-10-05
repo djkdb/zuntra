@@ -298,6 +298,8 @@ model Day {
   date      DateTime @db.Date
   dayNumber Int
   title     String?
+  /// Set when a person named the day ("교토 · 아라시야마"): AI keeps it and plans around it.
+  titleByUser Boolean @default(false)
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

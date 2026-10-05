@@ -43,7 +43,7 @@ test("a traveler goes from signup to the AI travel report", async ({ page }) => 
   await expect(page.getByRole("button", { name: "편의점 쇼핑 완료 취소" })).toBeVisible();
 
   // AI 일정 조정 (preview → apply)
-  await page.getByRole("button", { name: "AI로 일정 다시 맞추기" }).click();
+  await page.getByRole("button", { name: "AI 일정 조정" }).click();
   await page.getByRole("button", { name: "피곤해요" }).click();
   await page.getByRole("button", { name: "제안 받기" }).click();
   const apply = page.getByRole("button", { name: /^(적용하기|확인)$/ });

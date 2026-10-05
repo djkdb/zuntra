@@ -78,7 +78,7 @@ export function TravelProfileFields({
             {...props}
             name="favoriteFoods"
             defaultValue={defaults?.favoriteFoods?.join(", ") ?? ""}
-            placeholder="라멘, 스시, 디저트"
+            placeholder="예: 해산물, 국수, 디저트"
           />
         )}
       </Field>

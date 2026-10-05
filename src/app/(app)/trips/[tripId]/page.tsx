@@ -71,7 +71,7 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
       : phase === "ongoing"
         ? [
             { label: "오늘 일정 확인", hint: "다음 장소와 이동시간을 확인해요.", href: `${base}/plan`, done: false },
-            { label: "쓴 돈 기록", hint: progress.expenseCount === 0 ? "아직 기록한 지출이 없어요." : `지출 ${progress.expenseCount}건을 기록했어요.`, href: `${base}/budget`, done: false },
+            { label: "쓴 돈 기록", hint: progress.expenseCount === 0 ? "아직 기록한 지출이 없어요." : `지출 ${progress.expenseCount}건을 기록했어요.`, href: `${base}/budget`, done: progress.expenseCount > 0 },
             { label: "오늘의 기록 남기기", hint: "사진과 한 줄 메모로 남겨 두면 리포트에 담겨요.", href: `${base}/journal`, done: false },
           ]
         : [
@@ -93,6 +93,8 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
       {searchParams.updated ? <FlashToast message="여행 정보를 저장했어요." /> : null}
 
       <div className="min-w-0 space-y-6">
+        {/* On phones the guide leads the page (the side column sits far below); mid-trip, today's plan comes first. */}
+        {phase !== "ongoing" ? <NextSteps id="next-step-top" status={stepStatus} title={stepTitle} steps={steps} className="lg:hidden" /> : null}
         {phase === "ongoing" && todayData.todayDayId ? (
           <TodayView
             tripId={trip.id}
@@ -147,7 +149,7 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
       </div>
 
       <aside aria-labelledby="trip-info" className="space-y-5">
-        <NextSteps status={stepStatus} title={stepTitle} steps={steps} />
+        <NextSteps status={stepStatus} title={stepTitle} steps={steps} className={phase !== "ongoing" ? "hidden lg:block" : undefined} />
         <h2 id="trip-info" className="text-base font-semibold">
           여행 정보
         </h2>

@@ -148,3 +148,24 @@ describe("expenses in another currency", () => {
     expect(again.expenses.find((x) => x.title === "라멘")!.amount).toBeGreaterThan(0);
   });
 });
+
+describe("editing a foreign-currency expense", () => {
+  it("keeps the currency and rate when only the amount changes", async () => {
+    const user = await createUser();
+    const { id } = await createTestTrip(user.id);
+    const created = await addExpense(id, user.id, { title: "라멘", category: "FOOD", amount: 1000, currency: "JPY", fxRate: 9.1, date: "2026-11-03" });
+    const expenseId = created.expenses[0]!.id;
+    const edited = await updateExpense(id, user.id, expenseId, { amount: 2000 });
+    const e = edited.expenses[0]!;
+    expect([e.originalAmount, e.originalCurrency, e.fxRate, e.amount]).toEqual([2000, "JPY", 9.1, 18200]);
+    const rerated = await updateExpense(id, user.id, expenseId, { fxRate: 10 });
+    expect(rerated.expenses[0]!.amount).toBe(20000);
+  });
+
+  it("rejects amounts that round to nothing and comma rates", async () => {
+    const user = await createUser();
+    const { id } = await createTestTrip(user.id);
+    await expectAppError(addExpense(id, user.id, { title: "x", category: "FOOD", amount: 0.4, date: "2026-11-03" }), "VALIDATION");
+    await expectAppError(addExpense(id, user.id, { title: "x", category: "FOOD", amount: 1000, currency: "JPY", fxRate: "9,1", date: "2026-11-03" }), "VALIDATION");
+  });
+});

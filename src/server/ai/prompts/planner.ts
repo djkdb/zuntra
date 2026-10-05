@@ -25,7 +25,7 @@ export function plannerInput(ctx: PlannerContext) {
   const lines = [
     `Destination: ${ctx.destination} (timezone ${ctx.timezone})`,
     `Dates: ${ctx.startDate} → ${ctx.endDate}; travelers: ${ctx.travelerCount}; currency: ${ctx.currency}`,
-    `Generate days: ${ctx.days.map((d) => `Day ${d.dayNumber} (${d.date}${d.rainy ? ", rainy" : ""})`).join(", ")}`,
+    `Generate days: ${ctx.days.map((d) => `Day ${d.dayNumber} (${d.date}${d.rainy ? ", rainy" : ""}${d.hint ? `, traveller's plan for this day: "${d.hint}" — stay in that city/area` : ""})`).join(", ")}`,
     `Total days in trip: ${ctx.totalDays}`,
     `Pace: ${ctx.pace} (${TRAVEL_PACE_LABELS[ctx.pace].label}); budget level: ${BUDGET_LEVEL_LABELS[ctx.budgetLevel].label}${
       ctx.budgetAmount ? `; total budget ${ctx.budgetAmount} ${ctx.currency}` : ""

@@ -6,7 +6,7 @@ import { formatDelay, reflowDay } from "@/lib/schedule";
 import type { CompanionContext, ContextItem } from "../context/trip-context";
 import type { CompanionActionDraft, CompanionReply } from "../schemas/companion";
 import { type Poi, findCity } from "./poi-catalog";
-import { josa, withJosa } from "@/lib/korean";
+import { josa, withCopula, withJosa } from "@/lib/korean";
 import { formatMoney } from "@/lib/format";
 import { weatherLabel } from "@/lib/weather";
 
@@ -246,7 +246,7 @@ export function mockCompanion({ ctx, message }: MockCompanionInput): CompanionRe
         amount !== null
           ? `총 예산을 ${withJosa(fmt(amount), "으로/로")} 바꿀까요?`
           : total
-            ? `지금까지 ${withJosa(fmt(spent), "을/를")} 써서 예산의 ${Math.round((spent / total) * 100)}%를 사용했어요.${top ? ` 가장 많이 쓴 항목은 ${categoryLabel(top[0])}이에요.` : ""}`
+            ? `지금까지 ${withJosa(fmt(spent), "을/를")} 써서 예산의 ${Math.round((spent / total) * 100)}%를 사용했어요.${top ? ` 가장 많이 쓴 항목은 ${withCopula(categoryLabel(top[0]))}.` : ""}`
             : `지금까지 ${withJosa(fmt(spent), "을/를")} 썼어요. 예산을 정해 두면 사용률을 알려드릴게요.`,
       quickReplies: ["경비 기록하기"],
       actions:

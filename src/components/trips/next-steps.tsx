@@ -13,16 +13,16 @@ export interface NextStep {
  * The overview's guide: what is left to do for this phase of the trip, in order, each a link to
  * the place where it gets done. Finished steps stay visible (checked) so progress is clear.
  */
-export function NextSteps({ status, title, steps }: { status: string; title: string; steps: NextStep[] }) {
+export function NextSteps({ status, title, steps, id = "next-step", className }: { status: string; title: string; steps: NextStep[]; id?: string; className?: string }) {
   const left = steps.filter((s) => !s.done).length;
   return (
-    <section aria-labelledby="next-step" className="rounded-lg border bg-card">
+    <section aria-labelledby={id} className={cn("rounded-lg border bg-card", className)}>
       <div className="px-4 pt-4">
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className="size-2 rounded-full bg-sunset" aria-hidden />
           {status}
         </p>
-        <h2 id="next-step" className="mt-1.5 font-semibold">
+        <h2 id={id} className="mt-1.5 font-semibold">
           {title}
           {steps.length > 0 ? <span className="ml-1.5 text-sm font-normal text-muted-foreground">{left > 0 ? `${left}개 남음` : "모두 완료"}</span> : null}
         </h2>

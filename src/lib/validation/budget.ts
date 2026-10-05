@@ -18,7 +18,11 @@ export const expenseSchema = z.object({
   /** Paid in another currency: `amount` is in this currency, converted with `fxRate`. */
   currency: z.enum(CURRENCY_CODES, "통화를 골라 주세요.").optional(),
   /** Trip-currency units for one unit of `currency`. Defaults to a reference rate. */
-  fxRate: numeric("환율을 입력해 주세요.").pipe(z.number().positive("환율은 0보다 커야 해요.").max(1_000_000, "환율을 확인해 주세요.")).optional(),
+  // A plain decimal: "9,1" must not become 91 (thousand separators make no sense in a rate).
+  fxRate: z
+    .union([z.number(), z.string().trim().regex(/^\d+(\.\d+)?$/, "환율은 숫자와 소수점(.)으로 입력해 주세요. 예: 9.1").transform(Number)], "환율을 입력해 주세요.")
+    .pipe(z.number().positive("환율은 0보다 커야 해요.").max(1_000_000, "환율을 확인해 주세요."))
+    .optional(),
 });
 
 export const expensePatchSchema = expenseSchema.partial();

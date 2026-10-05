@@ -19,7 +19,7 @@ function zonedToUtc(dateIso: string, minute: number, timeZone: string): Date {
 
 const icsDate = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 // RFC 5545 text: escape \ ; , and newlines, then fold long lines at 75 octets.
-const icsText = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+const icsText = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 function fold(line: string): string {
   const bytes = new TextEncoder().encode(line);
   if (bytes.length <= 75) return line;

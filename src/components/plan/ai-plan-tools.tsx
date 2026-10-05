@@ -220,7 +220,7 @@ export function RescheduleDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCwIcon className="size-5 text-primary" aria-hidden />
-            AI로 일정 다시 맞추기
+            AI 일정 조정
           </DialogTitle>
           <DialogDescription>
             DAY {day.dayNumber} 일정을 현재 상황에 맞게 조정해요. 적용하기 전에 변경 내용을 확인할 수 있어요.

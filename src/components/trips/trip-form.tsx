@@ -133,7 +133,7 @@ export function TripForm({ action, defaults: initial, submitLabel, pendingLabel,
                   name="destination"
                   value={destination}
                   onChange={(e) => onDestinationChange(e.target.value)}
-                  placeholder="예: 도쿄"
+                  placeholder="예: 다낭, 파리, 제주"
                   maxLength={80}
                   autoComplete="off"
                   required
@@ -154,7 +154,7 @@ export function TripForm({ action, defaults: initial, submitLabel, pendingLabel,
                     setTitleTouched(true);
                     setTitle(e.target.value);
                   }}
-                  placeholder="예: 도쿄 4박 5일"
+                  placeholder="예: 여름휴가 3박 4일"
                   maxLength={60}
                   required
                 />
@@ -259,10 +259,10 @@ export function TripForm({ action, defaults: initial, submitLabel, pendingLabel,
             error={state.fields?.pace}
           />
           <div className="grid gap-5 md:grid-cols-2">
-            <Field label="가고 싶은 곳" optional error={state.fields?.preferredPlaces} hint="쉼표로 구분 (예: 시부야, 팀랩)">
+            <Field label="가고 싶은 곳" optional error={state.fields?.preferredPlaces} hint="쉼표로 구분 (예: 야시장, 해변)">
               {(props) => <Input {...props} name="preferredPlaces" defaultValue={defaults.preferredPlaces?.join(", ") ?? ""} />}
             </Field>
-            <Field label="먹고 싶은 음식" optional error={state.fields?.preferredFoods} hint="쉼표로 구분 (예: 라멘, 스시)">
+            <Field label="먹고 싶은 음식" optional error={state.fields?.preferredFoods} hint="쉼표로 구분 (예: 현지 국수, 해산물)">
               {(props) => <Input {...props} name="preferredFoods" defaultValue={defaults.preferredFoods?.join(", ") ?? ""} />}
             </Field>
           </div>

@@ -222,7 +222,7 @@ function ExpenseDialog({
   const [rateText, setRateText] = useState(() => formatRate(editing?.fxRate ?? referenceRate(currency, tripCurrency)));
   const foreign = currency !== tripCurrency;
   const parsedAmount = parseAmountText(amountText);
-  const parsedRate = Number(rateText.replace(/,/g, ""));
+  const parsedRate = /^\d+(\.\d+)?$/.test(rateText.trim()) ? Number(rateText) : Number.NaN;
   const preview = foreign && parsedAmount > 0 && parsedRate > 0 ? convertCurrency(parsedAmount, currency, tripCurrency, parsedRate) : null;
 
   return (
@@ -243,7 +243,7 @@ function ExpenseDialog({
               category: fd.get("category"),
               amount: amountText,
               currency,
-              fxRate: foreign ? rateText.replace(/,/g, "") : undefined,
+              fxRate: foreign ? rateText.trim() : undefined,
               date: fd.get("date"),
               note: fd.get("note") || null,
             });
@@ -281,7 +281,7 @@ function ExpenseDialog({
             </Field>
           ) : null}
           <Field label="내용" error={fields.title}>
-            {(p) => <Input {...p} name="title" maxLength={80} defaultValue={editing?.title ?? ""} placeholder="예: 이치란 라멘" required />}
+            {(p) => <Input {...p} name="title" maxLength={80} defaultValue={editing?.title ?? ""} placeholder="예: 점심 식사, 교통카드 충전" required />}
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="카테고리" error={fields.category}>

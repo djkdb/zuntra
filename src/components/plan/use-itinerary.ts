@@ -47,7 +47,8 @@ function useDaysMutation<TVars, TResult extends DaysResult = DaysResult>(
     onError: (error, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(key, ctx.previous);
       // Someone else changed it first: show their version instead of our stale copy.
-      if (error instanceof ApiError && error.status === 409) void qc.invalidateQueries({ queryKey: key });
+      // Edit conflicts are resolved by the editor (merge or ask); everything else is reported here.
+      if (error instanceof ApiError && error.status === 409) return void qc.invalidateQueries({ queryKey: key });
       toast.error(errorMessage(error));
     },
     onSuccess: (result) => {

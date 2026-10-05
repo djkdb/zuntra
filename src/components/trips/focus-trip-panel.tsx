@@ -94,7 +94,7 @@ export function QuickLinks({ tripId }: { tripId: string }) {
     { href: `/trips/${tripId}/map`, label: "지도", icon: MapPinIcon },
   ];
   return (
-    <ul className="grid grid-cols-3 gap-2">
+    <ul className="grid grid-cols-3 gap-2 lg:hidden">
       {links.map((l) => (
         <li key={l.href}>
           <Link

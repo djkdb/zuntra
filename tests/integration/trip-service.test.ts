@@ -143,3 +143,15 @@ describe("deleteTrip", () => {
     expect(await db.budget.count()).toBe(0);
   });
 });
+
+describe("changing the trip currency", () => {
+  it("is refused once expenses exist, so totals never get relabelled", async () => {
+    const { addExpense } = await import("@/server/services/budget-service");
+    const { updateTrip } = await import("@/server/services/trip-service");
+    const user = await createUser();
+    const { id } = await createTestTrip(user.id);
+    await updateTrip(id, user.id, { currency: "JPY" }); // fine while empty
+    await addExpense(id, user.id, { title: "라멘", category: "FOOD", amount: 1200, date: "2026-11-03" });
+    await expectAppError(updateTrip(id, user.id, { currency: "KRW" }), "VALIDATION");
+  });
+});

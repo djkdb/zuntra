@@ -33,7 +33,8 @@ export function mockReport(ctx: ReporterContext): ReportNarrative {
   if (highlights.length === 0) highlights.push(`${s.days}일 동안 ${s.places}곳을 다녀왔어요.`);
   const byCat = [...s.byCategory].sort((a, b) => b.amount - a.amount)[0];
   return {
-    title: `${ctx.trip.destination}, ${focus.replace(/으로$|로$/, "")}의 ${s.days}일`.slice(0, 60),
+    // "카페와 맛집을 중심으로" → "카페와 맛집 중심", "관광 위주로" → "관광 위주".
+    title: `${ctx.trip.destination}, ${focus.replace(/을 중심으로$/, " 중심").replace(/으로$|로$/, "")}의 ${s.days}일`.slice(0, 60),
     retrospective: sentences.join(" "),
     highlights,
     nextTripTip:
