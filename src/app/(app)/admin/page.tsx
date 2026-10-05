@@ -40,7 +40,7 @@ export default async function AdminPage() {
 
       <dl className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {tiles.map(([label, value, sub]) => (
-          <div key={label} className="rounded-2xl border bg-card p-4">
+          <div key={label} className="rounded-lg border bg-card p-4">
             <dt className="text-xs text-muted-foreground">{label}</dt>
             <dd className="mt-1 text-2xl font-semibold">{value}</dd>
             {sub ? <dd className="mt-0.5 text-xs text-muted-foreground">{sub}</dd> : null}
@@ -49,7 +49,7 @@ export default async function AdminPage() {
       </dl>
 
       <section aria-labelledby="funnel-title" className="space-y-3">
-        <h2 id="funnel-title" className="text-xl font-semibold">
+        <h2 id="funnel-title" className="text-lg font-semibold">
           사용자 퍼널 <span className="text-sm font-normal text-muted-foreground">(고유 사용자, 30일 · 비율은 가입 대비)</span>
         </h2>
         <ol className="space-y-2">
@@ -72,7 +72,7 @@ export default async function AdminPage() {
 
       <div className="grid gap-10 lg:grid-cols-2">
         <section aria-labelledby="ai-title" className="space-y-3">
-          <h2 id="ai-title" className="text-xl font-semibold">
+          <h2 id="ai-title" className="text-lg font-semibold">
             AI 기능별 사용량
           </h2>
           <table className="w-full text-left text-sm">
@@ -111,13 +111,13 @@ export default async function AdminPage() {
         </section>
 
         <section aria-labelledby="dest-title" className="space-y-3">
-          <h2 id="dest-title" className="text-xl font-semibold">
+          <h2 id="dest-title" className="text-lg font-semibold">
             인기 여행지
           </h2>
           {m.popularDestinations.length === 0 ? (
             <p className="text-sm text-muted-foreground">충분한 데이터가 모이면 보여드려요 (여행지당 2건 이상).</p>
           ) : (
-            <ol className="divide-y rounded-2xl border bg-card text-sm">
+            <ol className="divide-y rounded-lg border bg-card text-sm">
               {m.popularDestinations.map((d, i) => (
                 <li key={d.destination} className="flex justify-between px-4 py-2.5">
                   <span>

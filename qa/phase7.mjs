@@ -8,7 +8,7 @@ for (const [kind, opts] of [["mobile", devices["Pixel 7"]], ["desktop", { viewpo
   const page = await ctx.newPage();
   page.on("console", (m) => { if (m.type() === "error" && !/ERR_CERT|ERR_TOO_MANY/.test(m.text())) console.log(`[${kind}]`, m.text().slice(0, 300)); });
   await page.goto(BASE + "/demo");
-  await page.getByRole("heading", { name: "TODAY" }).waitFor();
+  await page.getByRole("heading", { name: "오늘 일정" }).waitFor();
   await page.screenshot({ path: `${S}/${kind}-p7-demo-today.png`, fullPage: true });
   await page.getByRole("tab", { name: "AI 동행" }).click();
   await page.getByRole("button", { name: "지금 너무 피곤해" }).click();

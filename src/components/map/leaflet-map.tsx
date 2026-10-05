@@ -17,7 +17,7 @@ export interface MapMarker {
 
 const COLORS: Record<MapMarker["kind"], string> = {
   stop: "var(--primary)",
-  food: "var(--sunset)",
+  food: "oklch(0.6 0.15 50)",
   lodging: "oklch(0.45 0.12 290)",
   airport: "oklch(0.4 0.02 250)",
   done: "oklch(0.7 0.01 250)",

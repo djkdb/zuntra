@@ -12,9 +12,8 @@ export default async function NewTripPage() {
   const profile = await getTravelProfile(user.id);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-10">
+    <div className="space-y-7">
       <PageHeader
-        eyebrow="새 여행"
         title="어떤 여행을 준비할까요?"
         description="기본 정보만 있으면 충분해요. 일정은 다음 단계에서 AI와 함께 만들어요."
       />

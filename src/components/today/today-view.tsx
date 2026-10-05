@@ -84,21 +84,21 @@ export function TodayView({
   };
 
   return (
-    <section aria-labelledby="today-title" className="overflow-hidden rounded-3xl border bg-card">
+    <section aria-labelledby="today-title" className="overflow-hidden rounded-xl border bg-card">
       <div className="flex items-start justify-between gap-3 border-b px-5 pt-5 pb-4">
         <div>
           <p className="text-xs font-medium text-muted-foreground">
             DAY {day.dayNumber} · {formatShortDate(day.date)} · 현지 {formatMinute(nowMinute)}
           </p>
-          <h2 id="today-title" className="mt-1 text-3xl font-bold tracking-tight">
-            TODAY
+          <h2 id="today-title" className="mt-1 text-2xl font-bold tracking-tight">
+            오늘 일정
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {day.items.length > 0 ? `${day.items.length}개 중 ${doneCount}개 완료` : "오늘 일정이 비어 있어요"}
           </p>
         </div>
         {weather ? (
-          <div className="flex items-center gap-2 rounded-2xl bg-secondary px-3 py-2 text-secondary-foreground">
+          <div className="flex items-center gap-2 rounded-lg bg-secondary px-3 py-2 text-secondary-foreground">
             <WeatherIcon condition={weather.condition} className="size-6" />
             <div className="text-right">
               <p className="text-lg leading-none font-semibold">{Math.round(weather.tempMax)}°C</p>

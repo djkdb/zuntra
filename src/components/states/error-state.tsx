@@ -20,7 +20,7 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className={cn("flex flex-col items-center justify-center rounded-2xl px-6 py-14 text-center", className)}
+      className={cn("flex flex-col items-center justify-center rounded-lg px-6 py-14 text-center", className)}
     >
       <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
         <CloudOffIcon className="size-6" aria-hidden />

@@ -42,11 +42,11 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
   ];
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-8">
       {searchParams.created ? <FlashToast message="여행을 만들었어요!" /> : null}
       {searchParams.updated ? <FlashToast message="여행 정보를 저장했어요." /> : null}
 
-      <div className="space-y-10">
+      <div className="min-w-0 space-y-6">
         {phase === "ongoing" && todayData.todayDayId ? (
           <TodayView
             tripId={trip.id}
@@ -59,62 +59,31 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
         {todayData.weather?.suggestions.slice(0, 2).map((s) => (
           <RainBanner key={s.dayId} tripId={trip.id} suggestion={s} canEdit={canEdit} />
         ))}
-        <section aria-labelledby="next-step" className="rounded-2xl bg-accent p-5 text-accent-foreground sm:p-6">
-          <p className="text-sm font-medium">
-            {phase === "upcoming"
-              ? `출발까지 ${formatDDay(trip.startDate, today)}`
-              : phase === "ongoing"
-                ? `여행 ${diffDaysIso(trip.startDate, today) + 1}일차`
-                : "여행이 끝났어요"}
-          </p>
-          <h2 id="next-step" className="mt-1 text-xl font-semibold">
-            {totalItems === 0 ? "이제 일정을 채워볼까요?" : `${totalItems}개의 일정이 준비되어 있어요.`}
-          </h2>
-          <p className="mt-1.5 text-sm opacity-80">
-            날짜별로 가고 싶은 곳을 추가하거나, AI에게 취향에 맞는 일정을 부탁할 수 있어요.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Button asChild>
-              <Link href={`/trips/${trip.id}/plan`}>
-                <CalendarPlusIcon data-icon="inline-start" aria-hidden />
-                일정 만들기
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="bg-background/60">
-              <Link href={`/trips/${trip.id}/companion`}>
-                <SparklesIcon data-icon="inline-start" aria-hidden />
-                AI 동행
-              </Link>
-            </Button>
-          </div>
-        </section>
 
-        {todayData.weather ? <WeatherStrip days={todayData.weather.days} stale={todayData.weather.stale} /> : null}
-
-        <section aria-labelledby="days-title" className="space-y-4">
-          <h2 id="days-title" className="text-xl font-semibold">
-            날짜별 일정 <span className="text-base font-normal text-muted-foreground">{trip.days.length}일</span>
+        <section aria-labelledby="days-title" className="space-y-3">
+          <h2 id="days-title" className="text-base font-semibold">
+            날짜별 일정 <span className="text-sm font-normal text-muted-foreground">{trip.days.length}일</span>
           </h2>
-          <ol className="divide-y overflow-hidden rounded-2xl border bg-card">
+          <ol className="divide-y overflow-hidden rounded-lg border bg-card">
             {trip.days.map((day) => {
               const isToday = day.date === today;
               return (
                 <li key={day.id}>
                   <Link
                     href={`/trips/${trip.id}/plan?day=${day.dayNumber}`}
-                    className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/60 sm:px-5"
+                    className="flex items-center gap-4 px-4 py-2.5 transition-colors hover:bg-muted/60"
                   >
                     <span
                       className={cn(
-                        "flex h-8 min-w-14 items-center justify-center rounded-lg bg-secondary px-2 text-xs font-semibold text-secondary-foreground",
-                        isToday && "bg-primary text-primary-foreground",
+                        "flex h-7 min-w-14 items-center justify-center rounded-md bg-muted px-2 text-xs font-semibold text-muted-foreground",
+                        isToday && "bg-sunset text-[oklch(0.25_0.05_70)]",
                       )}
                     >
                       DAY {day.dayNumber}
                     </span>
                     <span className="flex-1">
                       <span className="font-medium">{formatShortDate(day.date)}</span>
-                      {isToday ? <span className="ml-2 text-xs font-semibold text-primary">오늘</span> : null}
+                      {isToday ? <span className="ml-2 text-xs font-semibold">오늘</span> : null}
                       {day.title ? <span className="block text-sm text-muted-foreground">{day.title}</span> : null}
                     </span>
                     <span className="text-sm text-muted-foreground">
@@ -127,13 +96,45 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
             })}
           </ol>
         </section>
+
+        {todayData.weather ? <WeatherStrip days={todayData.weather.days} stale={todayData.weather.stale} /> : null}
       </div>
 
-      <aside aria-labelledby="trip-info" className="space-y-6">
-        <h2 id="trip-info" className="text-xl font-semibold">
+      <aside aria-labelledby="trip-info" className="space-y-5">
+        <section aria-labelledby="next-step" className="rounded-lg border bg-card p-4">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="size-2 rounded-full bg-sunset" aria-hidden />
+          {phase === "upcoming"
+            ? `출발까지 ${formatDDay(trip.startDate, today)}`
+            : phase === "ongoing"
+              ? `여행 ${diffDaysIso(trip.startDate, today) + 1}일차`
+              : "여행이 끝났어요"}
+        </p>
+        <h2 id="next-step" className="mt-1.5 font-semibold">
+          {totalItems === 0 ? "이제 일정을 채워볼까요?" : `${totalItems}개의 일정이 준비되어 있어요.`}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          날짜별로 가고 싶은 곳을 추가하거나, AI에게 취향에 맞는 일정을 부탁할 수 있어요.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href={`/trips/${trip.id}/plan`}>
+              <CalendarPlusIcon data-icon="inline-start" aria-hidden />
+              일정 만들기
+            </Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/trips/${trip.id}/companion`}>
+              <SparklesIcon data-icon="inline-start" aria-hidden />
+              AI 동행
+            </Link>
+          </Button>
+        </div>
+      </section>
+        <h2 id="trip-info" className="text-base font-semibold">
           여행 정보
         </h2>
-        <dl className="divide-y rounded-2xl border bg-card text-sm">
+        <dl className="divide-y rounded-lg border bg-card text-sm">
           {details.map(([label, value]) => (
             <div key={label} className="flex justify-between gap-4 px-4 py-3">
               <dt className="text-muted-foreground">{label}</dt>

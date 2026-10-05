@@ -33,7 +33,7 @@ export function DeleteTripButton({ tripId, title }: { tripId: string; title: str
   return (
     <AlertDialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive">
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
           <Trash2Icon data-icon="inline-start" aria-hidden />
           삭제
         </Button>

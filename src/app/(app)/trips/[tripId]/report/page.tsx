@@ -42,18 +42,18 @@ export default async function ReportPage(props: PageProps<"/trips/[tripId]/repor
 
   return (
     <article className="mx-auto max-w-3xl space-y-10">
-      <header className="overflow-hidden rounded-3xl bg-primary px-6 py-10 text-center text-primary-foreground sm:px-10">
+      <header className="overflow-hidden rounded-xl bg-primary px-6 py-10 text-center text-primary-foreground sm:px-10">
         <div aria-hidden className="mx-auto h-px w-24 bg-primary-foreground/40" />
-        <p className="mt-6 text-sm tracking-[0.3em] text-primary-foreground/70">{formatDateRange(report.trip.startDate, report.trip.endDate)}</p>
-        <h2 className="mt-3 text-4xl font-bold tracking-tight uppercase sm:text-5xl">{report.trip.destination} TRIP</h2>
+        <p className="mt-6 text-sm text-primary-foreground/75">{formatDateRange(report.trip.startDate, report.trip.endDate)}</p>
+        <h2 className="mt-2 text-3xl font-bold tracking-tight">{report.trip.destination} 여행</h2>
         <dl className="mt-6 flex flex-wrap justify-center gap-x-8 gap-y-3 text-lg">
           <div>
             <dt className="sr-only">기간</dt>
-            <dd className="font-semibold">{stats.days} DAYS</dd>
+            <dd className="font-semibold">{stats.days}일</dd>
           </div>
           <div>
             <dt className="sr-only">방문한 장소</dt>
-            <dd className="font-semibold">{stats.places} PLACES</dd>
+            <dd className="font-semibold">{stats.places}곳</dd>
           </div>
           <div>
             <dt className="sr-only">총 지출</dt>
@@ -68,7 +68,7 @@ export default async function ReportPage(props: PageProps<"/trips/[tripId]/repor
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="여행 사진">
           {highlights.coverPhotoIds.map((id) => (
             <li key={id}>
-              <Image src={`/api/photos/${id}`} alt="여행 사진" width={400} height={400} unoptimized loading="lazy" className="aspect-square w-full rounded-2xl object-cover" />
+              <Image src={`/api/photos/${id}`} alt="여행 사진" width={400} height={400} unoptimized loading="lazy" className="aspect-square w-full rounded-lg object-cover" />
             </li>
           ))}
         </ul>
@@ -80,7 +80,7 @@ export default async function ReportPage(props: PageProps<"/trips/[tripId]/repor
           { icon: UtensilsIcon, label: "가장 좋아한 음식", value: highlights.favoriteFood },
           { icon: CameraIcon, label: "가장 많이 방문한 카테고리", value: highlights.topCategory ? `${highlights.topCategory.label} · ${highlights.topCategory.count}곳` : null },
         ].map((h) => (
-          <div key={h.label} className="rounded-2xl border bg-card p-4">
+          <div key={h.label} className="rounded-lg border bg-card p-4">
             <h.icon className="size-5 text-primary" aria-hidden />
             <p className="mt-3 text-sm text-muted-foreground">{h.label}</p>
             <p className="mt-1 text-lg font-semibold">{h.value ?? "—"}</p>
@@ -114,7 +114,7 @@ export default async function ReportPage(props: PageProps<"/trips/[tripId]/repor
       </section>
 
       <section aria-labelledby="money-title" className="space-y-4">
-        <h2 id="money-title" className="text-xl font-semibold">
+        <h2 id="money-title" className="text-lg font-semibold">
           여행 경비 결산
         </h2>
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -127,7 +127,7 @@ export default async function ReportPage(props: PageProps<"/trips/[tripId]/repor
               stats.budget ? `${Math.round((stats.totalSpent / stats.budget) * 100)}%${stats.totalSpent > stats.budget ? " · 초과" : ""}` : "—",
             ],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-2xl border bg-card p-4">
+            <div key={label} className="rounded-lg border bg-card p-4">
               <dt className="text-sm text-muted-foreground">{label}</dt>
               <dd className="mt-1 font-semibold">{value}</dd>
             </div>
@@ -150,7 +150,7 @@ export default async function ReportPage(props: PageProps<"/trips/[tripId]/repor
 
       {highlights.moods.length > 0 ? (
         <section aria-labelledby="mood-title" className="space-y-3">
-          <h2 id="mood-title" className="text-xl font-semibold">
+          <h2 id="mood-title" className="text-lg font-semibold">
             여행 중 기분
           </h2>
           <ul className="flex flex-wrap gap-2">

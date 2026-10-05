@@ -10,7 +10,7 @@ export function WeatherStrip({ days, stale }: { days: DayWeatherView[]; stale?: 
   return (
     <section aria-labelledby="weather-title" className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <h2 id="weather-title" className="text-xl font-semibold">
+        <h2 id="weather-title" className="text-lg font-semibold">
           여행 날씨
         </h2>
         <p className="text-xs text-muted-foreground">
@@ -22,7 +22,7 @@ export function WeatherStrip({ days, stale }: { days: DayWeatherView[]; stale?: 
           <li
             key={d.dayId}
             className={cn(
-              "flex w-[5.5rem] shrink-0 flex-col items-center gap-1 rounded-2xl border bg-card px-2 py-3 text-center",
+              "flex w-[5.5rem] shrink-0 flex-col items-center gap-1 rounded-lg border bg-card px-2 py-3 text-center",
               d.available && isRainy(d) && "border-primary/40 bg-secondary/60",
             )}
           >

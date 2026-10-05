@@ -45,11 +45,11 @@ export function ChoiceGroup({
 
   return (
     <fieldset
-      className={cn("space-y-3", className)}
+      className={cn("space-y-2", className)}
       aria-describedby={[hintId, errorId].filter(Boolean).join(" ") || undefined}
       aria-invalid={error ? true : undefined}
     >
-      <legend className="mb-3 text-sm font-medium">
+      <legend className="mb-2 text-sm font-medium">
         {legend}
         {optional ? <span className="font-normal text-muted-foreground"> (선택)</span> : null}
       </legend>
@@ -69,12 +69,12 @@ export function ChoiceGroup({
               className="peer sr-only"
             />
             {variant === "chips" ? (
-              <span className="inline-flex h-10 items-center gap-1.5 rounded-full border bg-card px-4 text-sm transition-colors select-none group-hover:border-primary/40 peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50">
+              <span className="inline-flex h-10 items-center gap-1.5 rounded-md border bg-card px-3.5 text-sm md:h-8 md:px-3 transition-colors select-none group-hover:border-primary/40 peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50">
                 <CheckIcon className="hidden size-3.5 group-has-[:checked]:block" aria-hidden />
                 {option.label}
               </span>
             ) : (
-              <span className="flex h-full flex-col rounded-xl border bg-card p-4 transition-colors select-none group-hover:border-primary/40 peer-checked:border-primary peer-checked:bg-secondary peer-checked:ring-1 peer-checked:ring-primary peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50">
+              <span className="flex h-full flex-col rounded-md border bg-card p-3 transition-colors select-none group-hover:border-primary/40 peer-checked:border-primary peer-checked:bg-secondary peer-checked:ring-1 peer-checked:ring-primary peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50">
                 <span className="font-medium">{option.label}</span>
                 {option.description ? (
                   <span className="mt-1 text-xs text-muted-foreground">{option.description}</span>

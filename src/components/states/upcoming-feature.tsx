@@ -20,11 +20,11 @@ export function UpcomingFeature({
   tripId: string;
 }) {
   return (
-    <section className="mx-auto max-w-xl rounded-2xl border border-dashed px-6 py-12 text-center">
+    <section className="mx-auto max-w-xl rounded-lg border border-dashed px-6 py-12 text-center">
       <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
         <Icon className="size-6" aria-hidden />
       </div>
-      <p className="text-xs font-semibold tracking-wide text-sunset uppercase">곧 제공돼요</p>
+      <p className="text-xs font-medium text-muted-foreground">곧 제공돼요</p>
       <h2 className="mt-2 text-xl font-semibold">{title}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{description}</p>
       <ul className="mx-auto mt-6 max-w-sm space-y-2 text-left text-sm">

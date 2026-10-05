@@ -54,15 +54,7 @@ export default function LandingPage() {
   return (
     <>
       <section className="relative overflow-hidden">
-        <div
-          aria-hidden
-          className="absolute inset-x-0 -top-40 -z-10 h-[38rem] opacity-60 [background:radial-gradient(50rem_24rem_at_70%_0%,color-mix(in_oklch,var(--sunset)_35%,transparent),transparent_70%),radial-gradient(40rem_24rem_at_10%_10%,color-mix(in_oklch,var(--primary)_22%,transparent),transparent_70%)]"
-        />
         <div className="mx-auto max-w-6xl px-5 pt-14 pb-16 text-center sm:pt-24">
-          <p className="mx-auto inline-flex items-center gap-2 rounded-full border bg-card/70 px-3.5 py-1.5 text-xs font-medium text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-sunset" aria-hidden />
-            AI 여행 동행 서비스
-          </p>
           <h1 className="mx-auto mt-6 max-w-3xl text-[2.5rem] leading-[1.15] font-bold sm:text-6xl">
             여행을 계획하는 게 아니라,
             <br />
@@ -134,7 +126,7 @@ export default function LandingPage() {
               ["밥 먹고 어디 가지?", "현재 위치와 남은 시간, 취향으로 추천해요."],
               ["예산이 빠듯해요", "카테고리별 지출을 보고 아낄 곳을 알려줘요."],
             ].map(([q, a]) => (
-              <li key={q} className="rounded-2xl border bg-card px-5 py-4">
+              <li key={q} className="rounded-lg border bg-card px-5 py-4">
                 <p className="font-semibold">“{q}”</p>
                 <p className="mt-1 text-sm text-muted-foreground">{a}</p>
               </li>
@@ -144,7 +136,7 @@ export default function LandingPage() {
       </section>
 
       <section className="px-5 pb-24">
-        <div className="mx-auto max-w-6xl rounded-3xl bg-primary px-6 py-14 text-center text-primary-foreground sm:py-20">
+        <div className="mx-auto max-w-6xl rounded-xl bg-primary px-6 py-14 text-center text-primary-foreground sm:py-20">
           <h2 className="text-3xl font-bold sm:text-4xl">다음 여행, 혼자 준비하지 마세요.</h2>
           <p className="mx-auto mt-4 max-w-md text-primary-foreground/80">
             여행지와 날짜만 있으면 시작할 수 있어요.

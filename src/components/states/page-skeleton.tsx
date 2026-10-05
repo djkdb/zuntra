@@ -10,7 +10,7 @@ export function PageSkeleton({ rows = 3 }: { rows?: number }) {
       </div>
       <div className="space-y-3">
         {Array.from({ length: rows }, (_, i) => (
-          <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+          <Skeleton key={i} className="h-24 w-full rounded-lg" />
         ))}
       </div>
     </div>

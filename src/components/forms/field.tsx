@@ -19,7 +19,7 @@ export function Field({ label, error, hint, optional, className, children }: Fie
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-1.5", className)}>
       <Label htmlFor={id} className="text-sm font-medium">
         {label}
         {optional ? <span className="font-normal text-muted-foreground">(선택)</span> : null}

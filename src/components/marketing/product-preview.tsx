@@ -16,7 +16,7 @@ export function ProductPreview() {
     <div className="relative mx-auto grid max-w-5xl items-start gap-6 lg:grid-cols-[340px_1fr]">
       {/* Phone: the TODAY screen */}
       <figure
-        aria-label="여행 중 TODAY 화면 예시"
+        aria-label="여행 중 오늘 일정 화면 예시"
         className="relative mx-auto w-full max-w-[340px] rounded-[2.5rem] border-[10px] border-foreground/90 bg-background shadow-2xl shadow-primary/20"
       >
         <div className="rounded-[1.9rem] px-4 pt-5 pb-6">
@@ -27,8 +27,8 @@ export function ProductPreview() {
               {day.weather.tempMax}°C
             </span>
           </div>
-          <p className="mt-3 text-[1.6rem] leading-none font-bold">TODAY</p>
-          <div className="mt-4 rounded-2xl bg-secondary p-3.5 text-secondary-foreground">
+          <p className="mt-3 text-[1.6rem] leading-none font-bold">오늘 일정</p>
+          <div className="mt-4 rounded-lg bg-secondary p-3.5 text-secondary-foreground">
             <p className="flex items-center gap-1.5 text-xs font-medium">
               <MapPinIcon className="size-3.5" aria-hidden />
               현재 위치 · Ueno
@@ -52,9 +52,9 @@ export function ProductPreview() {
 
       {/* Companion + context cards */}
       <div className="space-y-4">
-        <figure aria-label="AI 동행 대화 예시" className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+        <figure aria-label="AI 동행 대화 예시" className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
           <div className="flex justify-end">
-            <p className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+            <p className="max-w-[80%] rounded-lg rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground">
               지금 너무 피곤해.
             </p>
           </div>
@@ -63,7 +63,7 @@ export function ProductPreview() {
               <SparklesIcon className="size-4" aria-hidden />
             </span>
             <div className="min-w-0 space-y-3">
-              <p className="rounded-2xl rounded-tl-md bg-muted px-4 py-3 text-sm leading-relaxed">
+              <p className="rounded-lg rounded-tl-md bg-muted px-4 py-3 text-sm leading-relaxed">
                 지금은 15:50이고 오늘 일정이 2개 남아 있어요. 숙소까지는 18분 정도 걸려요.
                 <br />
                 아메요코 시장은 내일 오전으로 옮기고, 숙소 근처에서 저녁을 먹는 걸 추천해요.
@@ -80,7 +80,7 @@ export function ProductPreview() {
         </figure>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <figure aria-label="날씨 기반 제안 예시" className="rounded-3xl border bg-card p-5">
+          <figure aria-label="날씨 기반 제안 예시" className="rounded-xl border bg-card p-5">
             <p className="flex items-center gap-2 text-sm font-semibold">
               <CloudRainIcon className="size-4 text-primary" aria-hidden />
               Day {rainDay.dayNumber} 오후 비 예보 · {rainDay.weather.precipitation}%
@@ -92,7 +92,7 @@ export function ProductPreview() {
               <span className="font-medium">팀랩 플래닛</span>
             </p>
           </figure>
-          <figure aria-label="예산 현황 예시" className="rounded-3xl border bg-card p-5">
+          <figure aria-label="예산 현황 예시" className="rounded-xl border bg-card p-5">
             <p className="text-sm font-semibold">예산의 {spentPct}%를 사용했어요</p>
             <p className="mt-1 text-2xl font-bold">{formatMoney(DEMO_TRIP.spentAmount, DEMO_TRIP.currency)}</p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted" aria-hidden>

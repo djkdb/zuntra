@@ -23,8 +23,8 @@ export default async function OpengraphImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "72px 80px",
-          background: "linear-gradient(135deg, #1f5560 0%, #2b6b77 55%, #d98a5b 140%)",
-          color: "#fbfaf7",
+          background: "#2958bf",
+          color: "#f8f7f6",
           fontFamily: "Pretendard",
         }}
       >
@@ -34,13 +34,13 @@ export default async function OpengraphImage() {
               width: 56,
               height: 56,
               borderRadius: 16,
-              background: "#fbfaf7",
+              background: "#f8f7f6",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <div style={{ width: 18, height: 18, borderRadius: 9, background: "#e0905f" }} />
+            <div style={{ width: 18, height: 18, borderRadius: 9, background: "#f5ae39" }} />
           </div>
           <div style={{ fontSize: 40, fontWeight: 700 }}>TripMate</div>
         </div>

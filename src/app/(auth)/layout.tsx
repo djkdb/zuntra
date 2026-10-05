@@ -5,10 +5,6 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="grid min-h-dvh lg:grid-cols-[1fr_minmax(0,560px)]">
       <aside className="relative hidden overflow-hidden bg-primary text-primary-foreground lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-30 [background:radial-gradient(60rem_30rem_at_120%_-10%,var(--sunset),transparent_60%),radial-gradient(40rem_30rem_at_-20%_110%,oklch(0.7_0.1_190),transparent_60%)]"
-        />
         <Link href="/" className="relative">
           <Logo />
         </Link>

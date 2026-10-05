@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "여행 전·여행 중·여행 후를 하나의 흐름으로 관리하는 AI 여행 동행",
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#fbfaf7",
-    theme_color: "#2b6b77",
+    background_color: "#f8f7f6",
+    theme_color: "#2958bf",
     lang: "ko",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },

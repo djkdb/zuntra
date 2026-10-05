@@ -54,7 +54,7 @@ const LeafletMap = dynamic(
 
 type Tab = "today" | "plan" | "map" | "ai" | "budget" | "journal";
 const TABS: { id: Tab; label: string; icon: typeof HomeIcon }[] = [
-  { id: "today", label: "TODAY", icon: HomeIcon },
+  { id: "today", label: "오늘", icon: HomeIcon },
   { id: "plan", label: "일정", icon: CalendarRangeIcon },
   { id: "map", label: "지도", icon: MapIcon },
   { id: "ai", label: "AI 동행", icon: SparklesIcon },
@@ -95,7 +95,7 @@ export function DemoApp() {
     <div className="space-y-6">
       <div
         role="note"
-        className="flex flex-col gap-3 rounded-2xl bg-accent px-4 py-3 text-sm text-accent-foreground sm:flex-row sm:items-center"
+        className="flex flex-col gap-3 rounded-lg bg-accent px-4 py-3 text-sm text-accent-foreground sm:flex-row sm:items-center"
       >
         <p className="flex flex-1 gap-2">
           <InfoIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -248,17 +248,17 @@ function DemoToday({ day, onAsk }: { day: DemoDay; onAsk: () => void }) {
             DAY {day.dayNumber} · {formatShortDate(day.date)} · 데모 시각{" "}
             {formatMinute(now)}
           </p>
-          <h2 className="text-3xl font-bold">TODAY</h2>
+          <h2 className="text-2xl font-bold">오늘 일정</h2>
           <p className="text-sm text-muted-foreground">
             {day.items.length}개 중 {done}개 완료
           </p>
         </div>
-        <p className="rounded-2xl bg-secondary px-3 py-2 text-sm text-secondary-foreground">
+        <p className="rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground">
           흐림 {day.weather.tempMax}°C · 비 {day.weather.precipitation}%
         </p>
       </div>
       {next ? (
-        <div className="rounded-2xl bg-secondary/60 p-4">
+        <div className="rounded-lg bg-secondary/60 p-4">
           <p className="text-xs text-muted-foreground">다음 일정</p>
           <p className="text-lg font-semibold">
             {formatMinute(next.startMinute)} {next.title}
@@ -307,7 +307,7 @@ function DemoPlan() {
           </button>
         ))}
       </div>
-      <h2 className="text-xl font-semibold">
+      <h2 className="text-lg font-semibold">
         DAY {day.dayNumber} · {day.title}
       </h2>
       <DemoTimeline items={day.items} />
@@ -367,7 +367,7 @@ function DemoMap() {
           </button>
         ))}
       </div>
-      <div className="h-[55dvh] min-h-80 overflow-hidden rounded-3xl border">
+      <div className="h-[55dvh] min-h-80 overflow-hidden rounded-xl border">
         <LeafletMap
           markers={markers}
           route={markers.map((m) => m.position)}
@@ -522,7 +522,7 @@ function DemoChat({ day, spent }: { day: DemoDay; spent: number }) {
   return (
     <section className="space-y-4">
       {messages.length === 0 ? (
-        <div className="rounded-2xl border border-dashed px-5 py-8 text-center">
+        <div className="rounded-lg border border-dashed px-5 py-8 text-center">
           <SparklesIcon className="mx-auto size-7 text-primary" aria-hidden />
           <p className="mt-2 font-semibold">
             지금 상황을 알고 대답하는 AI 동행
@@ -547,7 +547,7 @@ function DemoChat({ day, spent }: { day: DemoDay; spent: number }) {
       {messages.map((m, idx) =>
         m.role === "USER" ? (
           <div key={m.id} className="flex justify-end">
-            <p className="max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground">
+            <p className="max-w-[85%] rounded-lg rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground">
               {m.content}
             </p>
           </div>
@@ -560,7 +560,7 @@ function DemoChat({ day, spent }: { day: DemoDay; spent: number }) {
               <SparklesIcon className="size-4" />
             </span>
             <div className="min-w-0 max-w-[85%] space-y-2.5">
-              <p className="rounded-2xl rounded-tl-md bg-muted px-4 py-3 leading-relaxed whitespace-pre-line">
+              <p className="rounded-lg rounded-tl-md bg-muted px-4 py-3 leading-relaxed whitespace-pre-line">
                 {m.content}
               </p>
               {m.actions.map((a) => (
@@ -792,7 +792,7 @@ function DemoBudget({ spent }: { spent: number }) {
         <Button type="submit">지출 기록</Button>
       </form>
       <CategoryBars summary={summary} />
-      <ul className="divide-y rounded-2xl border bg-card">
+      <ul className="divide-y rounded-lg border bg-card">
         {expenses.map((e) => (
           <li
             key={e.id}
@@ -820,7 +820,7 @@ function DemoJournalTab() {
   return (
     <section className="space-y-4">
       <form
-        className="space-y-2 rounded-2xl border bg-card p-4"
+        className="space-y-2 rounded-lg border bg-card p-4"
         onSubmit={(e) => {
           e.preventDefault();
           if (!content.trim()) return;
@@ -847,7 +847,7 @@ function DemoJournalTab() {
         </Button>
       </form>
       {journal.map((j) => (
-        <article key={j.id} className="rounded-2xl border bg-card p-4">
+        <article key={j.id} className="rounded-lg border bg-card p-4">
           <p className="text-xs text-muted-foreground">
             {formatShortDate(j.date)}{" "}
             {j.mood ? MOOD_OPTIONS.find((m) => m.value === j.mood)?.emoji : ""}{" "}

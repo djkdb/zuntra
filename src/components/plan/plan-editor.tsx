@@ -40,6 +40,7 @@ import { analyzeDay, endOf, formatDelay, reflowDay } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 import type { Itinerary } from "@/server/services/itinerary-service";
 import { type ItemDraft, ItemDialog } from "./item-dialog";
+import { DayMiniMap } from "./day-mini-map";
 import { ItemRow } from "./item-row";
 import { useItinerary, useItineraryMutations } from "./use-itinerary";
 
@@ -72,6 +73,7 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
   const [dialog, setDialog] = useState<DialogState>(null);
   const [pendingDelete, setPendingDelete] = useState<ItineraryItemView | null>(null);
   const [dismissedIssues, setDismissedIssues] = useState<string | null>(null);
+  const [mapSelectedId, setMapSelectedId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -131,15 +133,15 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
                   onClick={() => setSelectedDayId(d.id)}
                   aria-current={active ? "date" : undefined}
                   className={cn(
-                    "flex flex-col items-start rounded-xl border px-3.5 py-2 text-left transition-colors",
-                    active ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted",
+                    "flex flex-col items-start rounded-lg border px-3 py-1.5 text-left transition-colors",
+                    active ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-muted",
                   )}
                 >
                   <span className="text-xs font-semibold">
                     DAY {d.dayNumber}
                     {d.date === today ? " · 오늘" : ""}
                   </span>
-                  <span className={cn("text-sm", active ? "text-primary-foreground/85" : "text-muted-foreground")}>
+                  <span className={cn("text-sm", active ? "text-background/80" : "text-muted-foreground")}>
                     {formatShortDate(d.date)}
                     <span className="ml-1.5 text-xs">{d.items.length > 0 ? `${d.items.length}곳` : "–"}</span>
                   </span>
@@ -150,10 +152,11 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
         </ul>
       </nav>
 
-      <section aria-labelledby="day-title" className="space-y-4">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,26rem)]">
+      <section aria-labelledby="day-title" className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 id="day-title" className="text-xl font-semibold">
+            <h2 id="day-title" className="text-lg font-semibold">
               {dayLabel}
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -176,7 +179,7 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
         </div>
 
         {showAlert && preview ? (
-          <div role="alert" className="rounded-2xl border border-warning/50 bg-warning/10 p-4">
+          <div role="alert" className="rounded-lg border border-warning/50 bg-warning/10 p-4">
             <p className="flex items-start gap-2 font-medium">
               <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-[oklch(0.55_0.13_65)]" aria-hidden />
               {preview.maxDelay > 0
@@ -233,7 +236,11 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
             <SortableContext items={day.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
               <ol className="space-y-0" aria-label={`${dayLabel} 일정`}>
                 {day.items.map((item, index) => (
-                  <li key={item.id}>
+                  <li
+                    key={item.id}
+                    id={`plan-item-${item.id}`}
+                    className={cn("scroll-mt-24 rounded-lg", item.id === mapSelectedId && "ring-2 ring-ring/60")}
+                  >
                     {index > 0 ? <TravelLeg item={item} /> : null}
                     <ItemRow
                       item={item}
@@ -264,13 +271,24 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
           <button
             type="button"
             onClick={() => setDialog({ mode: "create" })}
-            className="ml-14 flex h-12 w-[calc(100%-3.5rem)] items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-muted-foreground hover:bg-muted"
+            className="ml-14 flex h-10 w-[calc(100%-3.5rem)] items-center justify-center gap-2 rounded-xl border border-dashed text-sm font-medium text-muted-foreground hover:bg-muted"
           >
             <PlusIcon className="size-4" aria-hidden />
             일정 추가
           </button>
         ) : null}
       </section>
+      <DayMiniMap
+        tripId={tripId}
+        day={day}
+        center={data.trip.center}
+        selectedId={mapSelectedId}
+        onSelect={(id) => {
+          setMapSelectedId(id);
+          document.getElementById(`plan-item-${id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }}
+      />
+      </div>
 
       {dialog ? (
         <ItemDialog

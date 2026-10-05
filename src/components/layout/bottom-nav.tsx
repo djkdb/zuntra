@@ -52,7 +52,7 @@ export function BottomNav({ focusTripId }: { focusTripId: string | null }) {
               {item.primary ? (
                 <span
                   className={cn(
-                    "-mt-5 flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 ring-4 ring-background transition-transform active:scale-95",
+                    "-mt-5 flex size-12 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-lg shadow-primary/25 ring-4 ring-background transition-transform active:scale-95",
                   )}
                 >
                   <item.icon className="size-5" aria-hidden />

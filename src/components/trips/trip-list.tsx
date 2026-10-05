@@ -12,7 +12,7 @@ type TripListTrip = Pick<
 
 export function TripList({ trips, now }: { trips: TripListTrip[]; now?: Date }) {
   return (
-    <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
+    <ul className="divide-y overflow-hidden rounded-lg border bg-card">
       {trips.map((trip) => (
         <li key={trip.id}>
           <TripRow trip={trip} now={now} />
@@ -30,14 +30,14 @@ function TripRow({ trip, now }: { trip: TripListTrip; now?: Date }) {
   return (
     <Link
       href={`/trips/${trip.id}`}
-      className="group flex items-center gap-4 px-4 py-4 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none sm:px-5"
+      className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none sm:px-5"
     >
       <div
         aria-hidden
-        className="flex size-14 shrink-0 flex-col items-center justify-center rounded-xl bg-secondary text-secondary-foreground"
+        className="flex size-12 shrink-0 flex-col items-center justify-center rounded-lg bg-muted text-foreground"
       >
         <span className="text-[11px] font-medium">{Number(month)}월</span>
-        <span className="text-xl leading-none font-bold">{Number(day)}</span>
+        <span className="text-lg leading-none font-bold">{Number(day)}</span>
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">

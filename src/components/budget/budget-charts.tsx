@@ -12,11 +12,11 @@ export function BudgetMeter({ summary }: { summary: BudgetSummaryView }) {
   const pct = usedPct ?? 0;
   const over = total !== null && spent > total;
   return (
-    <section aria-labelledby="budget-hero" className="rounded-3xl border bg-card p-6">
+    <section aria-labelledby="budget-hero" className="rounded-xl border bg-card p-6">
       <p id="budget-hero" className="text-sm font-medium text-muted-foreground">
         {isFinal ? "총 지출" : "지금까지 사용한 금액"}
       </p>
-      <p className="mt-1 text-5xl font-semibold tracking-tight">{formatMoney(spent, currency)}</p>
+      <p className="mt-1 text-4xl font-semibold tracking-tight tabular-nums">{formatMoney(spent, currency)}</p>
       {total !== null ? (
         <>
           <div
@@ -69,7 +69,7 @@ export function CategoryBars({ summary }: { summary: BudgetSummaryView }) {
   return (
     <section aria-labelledby="category-title" className="space-y-4">
       <div className="flex items-baseline justify-between">
-        <h2 id="category-title" className="text-xl font-semibold">
+        <h2 id="category-title" className="text-lg font-semibold">
           카테고리별 지출
         </h2>
         {hasAllocation ? (
@@ -125,7 +125,7 @@ export function DailyColumns({ summary }: { summary: BudgetSummaryView }) {
   if (summary.byDay.length === 0) return null;
   return (
     <section aria-labelledby="daily-title" className="space-y-4">
-      <h2 id="daily-title" className="text-xl font-semibold">
+      <h2 id="daily-title" className="text-lg font-semibold">
         날짜별 지출
       </h2>
       <div className="relative">

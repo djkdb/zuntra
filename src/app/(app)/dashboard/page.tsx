@@ -83,7 +83,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       {others.length > 0 ? (
         <section aria-labelledby="other-trips" className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 id="other-trips" className="text-xl font-semibold">
+            <h2 id="other-trips" className="text-lg font-semibold">
               예정된 여행
             </h2>
             <Link href="/trips" className="inline-flex items-center gap-1 text-sm font-medium text-primary">
@@ -96,7 +96,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
       {groups.past.length > 0 ? (
         <section aria-labelledby="past-trips" className="space-y-4">
-          <h2 id="past-trips" className="text-xl font-semibold">
+          <h2 id="past-trips" className="text-lg font-semibold">
             지난 여행
           </h2>
           <TripList trips={groups.past.slice(0, 3)} />

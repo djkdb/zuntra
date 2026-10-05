@@ -53,7 +53,7 @@ export default async function TripsPage(props: PageProps<"/trips">) {
       ) : (
         sections.map((section) => (
           <section key={section.key} aria-labelledby={`trips-${section.key}`} className="space-y-4">
-            <h2 id={`trips-${section.key}`} className="text-xl font-semibold">
+            <h2 id={`trips-${section.key}`} className="text-lg font-semibold">
               {section.title} <span className="text-base font-normal text-muted-foreground">{section.trips.length}</span>
             </h2>
             <TripList trips={section.trips} />

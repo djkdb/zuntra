@@ -81,7 +81,7 @@ export function JournalClient({ tripId, initialData }: { tripId: string; initial
                 {formatShortDate(date)}
               </h2>
               {entries.map((e) => (
-                <article key={e.id} className="space-y-3 rounded-2xl border bg-card p-4">
+                <article key={e.id} className="space-y-3 rounded-lg border bg-card p-4">
                   <header className="flex items-start justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                       {e.mood ? (
@@ -137,7 +137,7 @@ export function JournalClient({ tripId, initialData }: { tripId: string; initial
       </div>
 
       <aside className="space-y-4">
-        <section className="rounded-3xl bg-primary p-5 text-primary-foreground">
+        <section className="rounded-xl bg-primary p-5 text-primary-foreground">
           <FlagIcon className="size-6" aria-hidden />
           {completed ? (
             <>

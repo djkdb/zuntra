@@ -8,7 +8,7 @@ export function RainBanner({ tripId, suggestion, canEdit }: { tripId: string; su
   const prompt = `Day ${suggestion.dayNumber} 오후에 비가 예상돼요. ${suggestion.outdoorTitles[0]} 같은 야외 일정을 실내 일정으로 바꿔줄래?`;
   const href = `/trips/${tripId}/companion?q=${encodeURIComponent(prompt)}&day=${suggestion.dayId}`;
   return (
-    <div role="status" className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-secondary/60 p-4 sm:flex-row sm:items-center">
+    <div role="status" className="flex flex-col gap-3 rounded-lg border border-primary/20 bg-secondary/60 p-4 sm:flex-row sm:items-center">
       <CloudRainIcon className="size-6 shrink-0 text-primary" aria-hidden />
       <div className="flex-1">
         <p className="font-semibold">{suggestion.message}</p>

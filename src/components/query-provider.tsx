@@ -2,8 +2,8 @@
 
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { useState } from "react";
+import { persistQueryClient } from "@tanstack/react-query-persist-client";
+import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api-client";
 
 const CACHE_BUSTER = "v1";
@@ -29,25 +29,20 @@ export function QueryProvider({ userId, children }: { userId: string; children: 
         },
       }),
   );
-  const [persister] = useState(() =>
-    typeof window === "undefined"
-      ? undefined
-      : createSyncStoragePersister({ storage: window.localStorage, key: `tripmate-cache-${userId}`, throttleTime: 2000 }),
-  );
+  // Restore/persist outside React. A provider that flips "restoring" state while the page is
+  // still hydrating forces React to client-render streamed Suspense boundaries, which can leave
+  // the server-streamed copy of a page in the DOM next to the client one.
+  useEffect(() => {
+    const persister = createSyncStoragePersister({ storage: window.localStorage, key: `tripmate-cache-${userId}`, throttleTime: 2000 });
+    const [unsubscribe] = persistQueryClient({
+      queryClient: client,
+      persister,
+      buster: CACHE_BUSTER,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      dehydrateOptions: { shouldDehydrateQuery: (q) => q.state.status === "success" },
+    });
+    return unsubscribe;
+  }, [client, userId]);
 
-  // Server render: no storage. Providers render no DOM, so hydration still matches.
-  if (!persister) return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  return (
-    <PersistQueryClientProvider
-      client={client}
-      persistOptions={{
-        persister,
-        buster: CACHE_BUSTER,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        dehydrateOptions: { shouldDehydrateQuery: (q) => q.state.status === "success" },
-      }}
-    >
-      {children}
-    </PersistQueryClientProvider>
-  );
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }

@@ -92,6 +92,6 @@ test("a traveler goes from signup to the AI travel report", async ({ page }) => 
   await page.getByRole("button", { name: "여행 종료하기" }).click();
   await expect(page).toHaveURL(new RegExp(`${tripPath}/report$`), { timeout: 30_000 });
   await expect(page.getByRole("heading", { name: "AI 여행 회고" })).toBeVisible();
-  await expect(page.getByText(/DAYS/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: /여행$/ }).first()).toBeVisible();
   await expect(page.getByText("₩12,000").first()).toBeVisible();
 });

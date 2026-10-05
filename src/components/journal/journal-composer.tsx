@@ -100,7 +100,7 @@ export function JournalComposer({
   };
 
   return (
-    <section aria-labelledby="composer-title" className="space-y-4 rounded-3xl border bg-card p-5">
+    <section aria-labelledby="composer-title" className="space-y-4 rounded-xl border bg-card p-5">
       <h2 id="composer-title" className="font-semibold">
         오늘의 기억 남기기
       </h2>

@@ -153,7 +153,7 @@ export function CompanionChat({
     <div className="flex min-h-[60dvh] flex-col">
       <div className="flex-1 space-y-5 pb-4" aria-live="polite" aria-relevant="additions">
         {messages.length === 0 ? (
-          <div className="rounded-2xl border border-dashed px-5 py-10 text-center">
+          <div className="rounded-lg border border-dashed px-5 py-10 text-center">
             <span className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-secondary text-primary">
               <SparklesIcon className="size-6" aria-hidden />
             </span>
@@ -179,7 +179,7 @@ export function CompanionChat({
         {messages.map((m) =>
           m.role === "USER" ? (
             <div key={m.id} className="flex justify-end">
-              <p className="max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 whitespace-pre-line text-primary-foreground">
+              <p className="max-w-[85%] rounded-lg rounded-br-md bg-primary px-4 py-2.5 whitespace-pre-line text-primary-foreground">
                 {m.content}
               </p>
             </div>
@@ -189,7 +189,7 @@ export function CompanionChat({
                 <SparklesIcon className="size-4" />
               </span>
               <div className="min-w-0 max-w-[85%] space-y-2.5">
-                <p className="rounded-2xl rounded-tl-md bg-muted px-4 py-3 leading-relaxed whitespace-pre-line">{m.content}</p>
+                <p className="rounded-lg rounded-tl-md bg-muted px-4 py-3 leading-relaxed whitespace-pre-line">{m.content}</p>
                 {m.actions.map((a) => (
                   <ActionCard
                     key={a.id}
@@ -224,7 +224,7 @@ export function CompanionChat({
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-primary" aria-hidden>
               <SparklesIcon className="size-4" />
             </span>
-            <p className="flex items-center gap-1.5 rounded-2xl rounded-tl-md bg-muted px-4 py-3 text-sm text-muted-foreground">
+            <p className="flex items-center gap-1.5 rounded-lg rounded-tl-md bg-muted px-4 py-3 text-sm text-muted-foreground">
               <span className="flex gap-1" aria-hidden>
                 <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s]" />
                 <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]" />
@@ -252,7 +252,7 @@ export function CompanionChat({
           e.preventDefault();
           submit(draft);
         }}
-        className="sticky bottom-20 z-10 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border lg:bottom-4"
+        className="sticky bottom-20 z-10 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border lg:bottom-4"
       >
         <label htmlFor="companion-input" className="sr-only">
           AI에게 메시지 보내기

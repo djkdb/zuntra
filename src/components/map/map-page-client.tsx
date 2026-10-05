@@ -114,7 +114,7 @@ export function MapPageClient({ tripId, initialData }: { tripId: string; initial
       </nav>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="relative h-[52dvh] min-h-80 overflow-hidden rounded-3xl border lg:h-[calc(100dvh-16rem)]">
+        <div className="relative h-[52dvh] min-h-80 overflow-hidden rounded-xl border lg:h-[calc(100dvh-16rem)]">
           <LeafletMap markers={markers} route={route} center={center} me={me} onSelect={setSelectedId} />
           <Button
             variant="outline"
@@ -134,7 +134,7 @@ export function MapPageClient({ tripId, initialData }: { tripId: string; initial
 
         <aside className="space-y-4">
           {selected && selectedDay ? (
-            <section aria-live="polite" className="rounded-2xl border bg-card p-4">
+            <section aria-live="polite" className="rounded-lg border bg-card p-4">
               <p className="text-xs font-medium text-primary">
                 DAY {selectedDay.dayNumber} · {formatShortDate(selectedDay.date)}
               </p>
@@ -170,10 +170,10 @@ export function MapPageClient({ tripId, initialData }: { tripId: string; initial
               </dl>
             </section>
           ) : (
-            <p className="rounded-2xl border border-dashed px-4 py-5 text-sm text-muted-foreground">지도에서 장소를 누르면 자세한 정보를 보여드려요.</p>
+            <p className="rounded-lg border border-dashed px-4 py-5 text-sm text-muted-foreground">지도에서 장소를 누르면 자세한 정보를 보여드려요.</p>
           )}
 
-          <ol className="divide-y rounded-2xl border bg-card">
+          <ol className="divide-y rounded-lg border bg-card">
             {listItems.length === 0 ? <li className="px-4 py-5 text-sm text-muted-foreground">이 날에는 일정이 없어요.</li> : null}
             {listItems.map(({ day, item }) => (
               <li key={item.id}>
@@ -196,7 +196,7 @@ export function MapPageClient({ tripId, initialData }: { tripId: string; initial
           </ol>
 
           {missing.length > 0 && data.trip.role !== "VIEWER" ? (
-            <section className="rounded-2xl bg-muted/60 p-4 text-sm">
+            <section className="rounded-lg bg-muted/60 p-4 text-sm">
               <p className="font-medium">위치 정보가 없는 일정 {missing.length}개</p>
               <ul className="mt-2 space-y-2">
                 {missing.slice(0, 5).map(({ item }) => (

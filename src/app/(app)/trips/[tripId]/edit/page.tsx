@@ -14,8 +14,8 @@ export default async function EditTripPage(props: PageProps<"/trips/[tripId]/edi
   if (trip.role === "VIEWER") redirect(`/trips/${trip.id}`);
 
   return (
-    <div className="max-w-2xl space-y-8">
-      <h2 className="text-xl font-semibold">여행 정보 수정</h2>
+    <div className="space-y-6">
+      <h2 className="text-lg font-semibold">여행 정보 수정</h2>
       <TripForm
         action={updateTripAction.bind(null, trip.id)}
         submitLabel="저장하기"

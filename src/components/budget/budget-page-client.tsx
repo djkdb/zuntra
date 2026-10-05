@@ -49,7 +49,7 @@ export function BudgetPageClient({ tripId, initialData }: { tripId: string; init
   return (
     <div className="space-y-10">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-xl font-semibold">{summary.isFinal ? "여행 결산" : "여행 경비"}</h2>
+        <h2 className="text-lg font-semibold">{summary.isFinal ? "여행 결산" : "여행 경비"}</h2>
         {canEdit ? (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setBudgetOpen(true)}>
@@ -66,7 +66,7 @@ export function BudgetPageClient({ tripId, initialData }: { tripId: string; init
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <BudgetMeter summary={summary} />
-        <section aria-labelledby="insights-title" className="rounded-3xl border bg-card p-6">
+        <section aria-labelledby="insights-title" className="rounded-xl border bg-card p-6">
           <h2 id="insights-title" className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
             AI 지출 분석
           </h2>
@@ -95,7 +95,7 @@ export function BudgetPageClient({ tripId, initialData }: { tripId: string; init
       ) : null}
 
       <section aria-labelledby="expenses-title" className="space-y-4">
-        <h2 id="expenses-title" className="text-xl font-semibold">
+        <h2 id="expenses-title" className="text-lg font-semibold">
           지출 내역 <span className="text-base font-normal text-muted-foreground">{expenses.length}건</span>
         </h2>
         {expenses.length === 0 ? (
@@ -119,7 +119,7 @@ export function BudgetPageClient({ tripId, initialData }: { tripId: string; init
                   {formatShortDate(date)}
                   {list[0]?.dayNumber ? ` · DAY ${list[0].dayNumber}` : ""}
                 </h3>
-                <ul className="divide-y rounded-2xl border bg-card">
+                <ul className="divide-y rounded-lg border bg-card">
                   {list.map((e) => (
                     <li key={e.id} className="flex items-center gap-3 px-4 py-3">
                       <span className="rounded-lg bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">

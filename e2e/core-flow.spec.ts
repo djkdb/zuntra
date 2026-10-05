@@ -12,7 +12,7 @@ test("landing explains the product and leads to signup", async ({ page }) => {
 test("demo mode works without an account and never needs the database", async ({ page }) => {
   await page.goto("/demo");
   await expect(page.getByRole("heading", { name: "Tokyo 5 Days" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "TODAY" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "오늘 일정" })).toBeVisible();
   await page.getByRole("tab", { name: "AI 동행" }).click();
   await page.getByRole("button", { name: "지금 너무 피곤해" }).click();
   await page.getByRole("button", { name: "일정 줄이기" }).click();
@@ -39,7 +39,7 @@ test("signup → onboarding → create, edit and delete a trip", async ({ page }
   await page.getByLabel("여행지").fill("도쿄");
   await page.getByLabel("출발일").fill(start);
   await page.getByLabel("귀국일").fill(end);
-  await expect(page.getByText("4박 5일")).toBeVisible();
+  await expect(page.getByText("4박 5일", { exact: true })).toBeVisible();
   await expect(page.getByLabel("여행 이름")).toHaveValue("도쿄 4박 5일");
   await expect(page.getByLabel("현지 시간대")).toHaveValue("Asia/Tokyo");
   await page.getByLabel("총 예산").fill("1,500,000");
@@ -53,7 +53,7 @@ test("signup → onboarding → create, edit and delete a trip", async ({ page }
 
   // Dashboard shows it as the upcoming focus trip.
   await page.goto("/dashboard");
-  await expect(page.locator("#main").getByText("다가오는 여행 · D-30")).toBeVisible();
+  await expect(page.locator("#main").getByText("D-30", { exact: true })).toBeVisible();
 
   // Edit: shrink by one day and rename.
   await page.goto(`${tripUrl}/edit`);

@@ -29,23 +29,23 @@ export function AppSidebar({
   const pathname = usePathname();
   const linkClass = (active: boolean) =>
     cn(
-      "flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-      active && "bg-sidebar-accent text-sidebar-accent-foreground",
+      "flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+      active && "bg-sidebar-accent font-medium text-sidebar-accent-foreground",
     );
 
   return (
-    <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r bg-sidebar px-3 py-5 lg:flex">
-      <Link href="/dashboard" className="px-3">
+    <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col border-r bg-sidebar px-2.5 py-4 lg:flex">
+      <Link href="/dashboard" className="px-2.5">
         <Logo />
       </Link>
 
-      <Button asChild className="mx-1 mt-7">
+      <Button asChild size="sm" className="mt-5 justify-start">
         <Link href="/trips/new">
           <PlusIcon data-icon="inline-start" aria-hidden />새 여행 만들기
         </Link>
       </Button>
 
-      <nav aria-label="주요 메뉴" className="mt-6 space-y-1">
+      <nav aria-label="주요 메뉴" className="mt-4 space-y-px">
         {MAIN_NAV.map((item) => {
           const active = item.href === "/trips" ? pathname === "/trips" : pathname.startsWith(item.href);
           return (
@@ -58,16 +58,16 @@ export function AppSidebar({
       </nav>
 
       {focusTrip ? (
-        <section aria-labelledby="sidebar-trip" className="mt-8">
-          <div className="px-3">
-            <p className="text-xs font-medium text-muted-foreground">
+        <section aria-labelledby="sidebar-trip" className="mt-6">
+          <div className="px-2.5">
+            <p className="text-xs text-muted-foreground">
               {focusTrip.phase === "ongoing" ? "여행 중" : `다가오는 여행 · ${formatDDay(focusTrip.startDate, focusTrip.today)}`}
             </p>
-            <p id="sidebar-trip" className="mt-1 truncate font-semibold">
+            <p id="sidebar-trip" className="mt-0.5 truncate text-sm font-semibold">
               {focusTrip.title}
             </p>
           </div>
-          <ul className="mt-2 space-y-0.5">
+          <ul className="mt-1.5 space-y-px">
             {TRIP_SECTIONS.map((section) => {
               const href = `/trips/${focusTrip.id}${section.segment ? `/${section.segment}` : ""}`;
               const active = pathname === href;
@@ -84,7 +84,7 @@ export function AppSidebar({
         </section>
       ) : null}
 
-      <div className="mt-auto space-y-1">
+      <div className="mt-auto space-y-px">
         {user.isAdmin ? (
           <Link href="/admin" className={linkClass(pathname.startsWith("/admin"))}>
             <BarChart3Icon className="size-4" aria-hidden />

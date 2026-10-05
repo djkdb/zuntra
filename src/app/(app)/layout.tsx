@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <MobileHeader user={{ name: user.name, email: user.email }} />
           <main
             id="main"
-            className="mx-auto w-full max-w-5xl flex-1 px-4 pt-6 pb-28 sm:px-6 lg:px-10 lg:pt-10 lg:pb-16"
+            className="mx-auto w-full max-w-[1320px] flex-1 px-4 pt-6 pb-28 sm:px-6 lg:px-8 lg:pt-7 lg:pb-12"
           >
             {children}
           </main>

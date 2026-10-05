@@ -20,9 +20,9 @@ export function TripTabs({ tripId, completed }: { tripId: string; completed?: bo
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative inline-flex h-11 items-center gap-1.5 px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+                  "relative inline-flex h-10 items-center gap-1.5 px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
                   active &&
-                    "text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-primary",
+                    "text-foreground after:absolute after:inset-x-1.5 after:-bottom-px after:h-0.5 after:bg-foreground",
                 )}
               >
                 <section.icon className="size-4" aria-hidden />

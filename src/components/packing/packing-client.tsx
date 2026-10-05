@@ -70,10 +70,10 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
     .filter((g) => g.items.length > 0);
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-48 flex-1">
-          <h2 className="text-xl font-semibold">준비물</h2>
+        <div className="min-w-48 flex-1 lg:max-w-md">
+          <h2 className="text-lg font-semibold">준비물</h2>
           {items.length > 0 ? (
             <>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -95,7 +95,7 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
 
       {data.canEdit ? (
         <form
-          className="flex gap-2"
+          className="flex max-w-2xl gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             if (name.trim()) add.mutate();
@@ -136,12 +136,13 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
           }
         />
       ) : (
-        groups.map((g) => (
+        <div className="columns-1 gap-5 lg:columns-2 2xl:columns-3 [&>section]:mb-5 [&>section]:break-inside-avoid">
+        {groups.map((g) => (
           <section key={g.name} aria-labelledby={`group-${g.name}`}>
             <h3 id={`group-${g.name}`} className="mb-2 text-sm font-semibold text-muted-foreground">
               {g.name} <span className="font-normal">{g.items.filter((i) => i.isPacked).length}/{g.items.length}</span>
             </h3>
-            <ul className="divide-y rounded-2xl border bg-card">
+            <ul className="divide-y rounded-lg border bg-card">
               {g.items.map((item) => (
                 <li key={item.id} className="flex items-center gap-3 px-3 py-2">
                   <button
@@ -152,11 +153,11 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
                     disabled={!data.canEdit}
                     onClick={() => toggle.mutate(item)}
                     className={cn(
-                      "flex size-7 shrink-0 items-center justify-center rounded-lg border-2 transition-colors",
+                      "flex size-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
                       item.isPacked ? "border-success bg-success text-white" : "border-border hover:border-primary",
                     )}
                   >
-                    {item.isPacked ? <CheckIcon className="size-4" strokeWidth={3} /> : null}
+                    {item.isPacked ? <CheckIcon className="size-3.5" strokeWidth={3} /> : null}
                   </button>
                   <span className="min-w-0 flex-1 py-1">
                     <span className={cn("block", item.isPacked && "text-muted-foreground line-through decoration-1")}>
@@ -179,7 +180,8 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
               ))}
             </ul>
           </section>
-        ))
+        ))}
+        </div>
       )}
     </div>
   );

@@ -15,12 +15,12 @@ export default async function SettingsPage() {
   const profile = await getTravelProfile(user.id);
 
   return (
-    <div className="max-w-2xl space-y-12">
+    <div className="max-w-3xl space-y-10">
       <PageHeader title="설정" description={user.email} />
 
       <section aria-labelledby="profile-title" className="space-y-6">
         <div>
-          <h2 id="profile-title" className="text-xl font-semibold">
+          <h2 id="profile-title" className="text-lg font-semibold">
             여행 프로필
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">AI 일정과 추천의 기준이 돼요.</p>
@@ -38,14 +38,14 @@ export default async function SettingsPage() {
       </section>
 
       <section aria-labelledby="display-title" className="space-y-4 border-t pt-10">
-        <h2 id="display-title" className="text-xl font-semibold">
+        <h2 id="display-title" className="text-lg font-semibold">
           화면
         </h2>
         <ThemeSelect />
       </section>
 
       <section aria-labelledby="account-title" className="space-y-4 border-t pt-10">
-        <h2 id="account-title" className="text-xl font-semibold">
+        <h2 id="account-title" className="text-lg font-semibold">
           계정
         </h2>
         <div className="flex flex-wrap gap-3">
