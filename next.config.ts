@@ -20,6 +20,19 @@ const nextConfig: NextConfig = {
     // tracing does not follow; include it so the Cloudflare (OpenNext) bundle can resolve it.
     "/**/*": ["./node_modules/pg-cloudflare/**/*"],
   },
+  // Prisma's wasm loader makes file tracing match the whole project. The Workers bundle imports
+  // every traced .wasm, so leave out build/dev tooling or it blows past the 64 MiB size limit.
+  outputFileTracingExcludes: {
+    "/**/*": [
+      "./.open-next/**",
+      "./.wrangler/**",
+      "./node_modules/{prisma,wrangler,miniflare,workerd,rolldown,typescript,esbuild,vitest,shadcn,cloudflare,effect,pretendard,ts-morph}/**",
+      "./node_modules/@prisma/{dev,engines,studio-core,fetch-engine,get-platform}/**",
+      "./node_modules/{@electric-sql,@cloudflare,@opennextjs,@rolldown,@esbuild,@vitest,@playwright,@ast-grep,@oxc-project,@unrs,@napi-rs,@tailwindcss,@typescript-eslint,@shadcn,@ts-morph,@img}/**",
+      "./node_modules/@next/swc-*/**",
+      "./node_modules/{playwright,playwright-core,lightningcss,lightningcss-*,eslint,eslint-*}/**",
+    ],
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

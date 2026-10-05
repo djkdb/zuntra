@@ -69,24 +69,29 @@ Playwright 브라우저가 다른 경로에 있다면 `PLAYWRIGHT_CHROMIUM_PATH`
 
 ## 배포 (Cloudflare Workers)
 
-[OpenNext](https://opennext.js.org/cloudflare)로 Workers에 배포합니다. 설정: `wrangler.jsonc`, `open-next.config.ts`.
+[OpenNext](https://opennext.js.org/cloudflare)로 Workers에 배포합니다. 설정: `wrangler.jsonc`(Worker 이름 `zuntra`), `open-next.config.ts`.
 
 준비물
-- **Workers Paid 플랜 권장** — 비밀번호 해시(bcrypt)가 무료 플랜의 요청당 CPU 한도(10ms)를 넘습니다.
-- 외부에서 접속 가능한 PostgreSQL (Neon, Supabase 등). Hyperdrive를 앞에 두면 연결 지연이 줄어듭니다.
-- Supabase Storage (Workers에는 파일시스템이 없으므로 `STORAGE_PROVIDER=supabase` 필수).
+- **Workers Paid 플랜 필요** — Worker 크기(압축 약 6MB)가 무료 한도(3MB)를 넘고, bcrypt 해시가 무료 CPU 한도를 넘습니다.
+- 외부에서 접속 가능한 PostgreSQL (Neon 등). 마이그레이션은 직접 연결 주소, 런타임은 풀링 주소 권장.
+- Supabase Storage (Workers에는 파일시스템이 없으므로 `STORAGE_PROVIDER=supabase`).
 
-절차
-1. `npx wrangler login`
-2. `wrangler.jsonc`의 `vars`에서 `NEXT_PUBLIC_APP_URL`, `AUTH_URL`(둘 다 실제 배포 주소), `SUPABASE_URL`을 수정
-3. 시크릿 등록: `npx wrangler secret put DATABASE_URL` (같은 방식으로 `AUTH_SECRET`, `OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
-4. 운영 DB 마이그레이션: `DATABASE_URL=<운영 DB> npx prisma migrate deploy`
-5. 배포: `NEXT_PUBLIC_APP_URL=https://<배포 주소> npm run cf:deploy` (`NEXT_PUBLIC_*`는 빌드 시 번들에 박힙니다)
+대시보드(Workers Builds, GitHub 연결)
+- Build command: `npm run cf:build`
+- Deploy command: `npx prisma migrate deploy && npx opennextjs-cloudflare deploy`
+- 빌드 변수: `DATABASE_URL`(필수 — Prisma 설정이 설치 단계에서 읽음), `NEXT_PUBLIC_APP_URL`(빌드 시 번들에 박힘)
+- 런타임 Variables: `NEXT_PUBLIC_APP_URL`, `AUTH_URL`(둘 다 배포 주소), `SUPABASE_URL`, 필요 시 `AI_PROVIDER`
+- 런타임 Secrets: `DATABASE_URL`, `AUTH_SECRET`, `OPENAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- `wrangler.jsonc`의 `keep_vars: true` 덕분에 배포해도 대시보드 변수가 유지됩니다.
+
+CLI: `npx wrangler login` → `npx wrangler secret put <NAME>` → `NEXT_PUBLIC_APP_URL=https://<주소> npm run cf:deploy`
 
 로컬 확인: `.dev.vars.example`을 `.dev.vars`로 복사 → `npm run cf:preview` (http://localhost:8787)
 
 참고
 - `cf:build`는 Prisma 클라이언트를 Workers용(`runtime = "cloudflare"`)으로 생성해 빌드한 뒤 Node용으로 되돌립니다.
+- Prisma wasm 로더 때문에 파일 트레이싱이 프로젝트 전체를 잡으므로 `next.config.ts`의 `outputFileTracingExcludes`로 개발 도구를 뺍니다(빼지 않으면 64MiB 한도 초과).
+- 정적 페이지·OG 이미지는 빌드 결과(static assets incremental cache)에서 서빙합니다.
 - Workers는 요청 간 소켓 재사용을 금지하므로 DB 클라이언트는 요청마다 만들어집니다(`src/server/db.ts`).
 - 레이트 리밋은 isolate 메모리 기반이라 Workers에서는 느슨하게 동작합니다. 엄격히 하려면 KV/Durable Objects로 교체하세요.
 

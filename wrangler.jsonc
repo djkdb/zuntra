@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tripmate",
+  "name": "zuntra",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-01",
   // nodejs_compat: Node APIs used by Prisma's pg driver, Auth.js and node:crypto.
@@ -9,17 +9,16 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
-  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "tripmate" }],
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "zuntra" }],
   "observability": { "enabled": true },
   // Non-secret configuration. Secrets (DATABASE_URL, AUTH_SECRET, OPENAI_API_KEY,
   // SUPABASE_SERVICE_ROLE_KEY) are set with `npx wrangler secret put <NAME>`.
-  // NEXT_PUBLIC_APP_URL is also inlined at build time — export it before `npm run cf:deploy`.
-  // AUTH_URL pins the cookie scheme so server actions and proxy.ts agree on the session cookie.
+  // Deployment-specific values (NEXT_PUBLIC_APP_URL, AUTH_URL, SUPABASE_URL, AI_PROVIDER) are set
+  // in the dashboard; keep_vars stops a deploy from wiping them. NEXT_PUBLIC_APP_URL is also
+  // inlined at build time, so set it as a build variable too.
+  "keep_vars": true,
   "vars": {
-    "NEXT_PUBLIC_APP_URL": "https://tripmate.example.workers.dev",
-    "AUTH_URL": "https://tripmate.example.workers.dev",
     "AUTH_TRUST_HOST": "true",
-    "SUPABASE_URL": "https://your-project.supabase.co",
     "SUPABASE_STORAGE_BUCKET": "trip-photos",
     "STORAGE_PROVIDER": "supabase",
     "WEATHER_PROVIDER": "open-meteo",
