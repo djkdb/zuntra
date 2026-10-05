@@ -4,6 +4,7 @@ import { clearAICacheForTesting } from "@/server/ai/guard";
 import { completeTrip, generateReport, getReport, reopenTrip } from "@/server/ai/travel-reporter";
 import { addExpense } from "@/server/services/budget-service";
 import { addItem, updateItem } from "@/server/services/itinerary-service";
+import { databaseStorage } from "@/server/integrations/storage";
 import { createJournalEntry, deleteJournalEntry, getJournal, readPhoto, uploadPhoto } from "@/server/services/journal-service";
 import { expectAppError } from "../helpers/assert";
 import { createTestTrip, createUser, db, resetDb } from "../helpers/db";
@@ -76,6 +77,20 @@ describe("journal & photos", () => {
     await deleteJournalEntry(id, user.id, data.entries[0]!.id);
     expect(await db.tripPhoto.count()).toBe(0);
     await expectAppError(readPhoto(photo.id, user.id), "NOT_FOUND");
+  });
+});
+
+describe("database photo storage", () => {
+  it("stores, reads and removes photo bytes in Postgres", async () => {
+    const storage = databaseStorage();
+    await storage.put("trips/t1/a.webp", WEBP, "image/webp");
+    await storage.put("trips/t1/a.webp", PNG, "image/png"); // re-upload overwrites
+    const got = await storage.get("trips/t1/a.webp");
+    expect(got?.contentType).toBe("image/png");
+    expect(Array.from(got!.body)).toEqual(Array.from(PNG));
+    await storage.remove(["trips/t1/a.webp"]);
+    expect(await storage.get("trips/t1/a.webp")).toBeNull();
+    await expect(storage.put("../escape.webp", WEBP, "image/webp")).rejects.toThrow();
   });
 });
 

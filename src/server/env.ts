@@ -20,7 +20,7 @@ const serverEnvSchema = z.object({
   AI_DAILY_BUDGET_USD: z.coerce.number().positive().default(0.5),
   WEATHER_PROVIDER: z.enum(["open-meteo", "mock"]).default("open-meteo"),
   MAPS_PROVIDER: z.enum(["osm", "mock"]).default("osm"),
-  STORAGE_PROVIDER: z.enum(["local", "supabase"]).default("local"),
+  STORAGE_PROVIDER: z.enum(["local", "supabase", "database"]).default("local"),
   STORAGE_LOCAL_DIR: z.string().default(".storage"),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),

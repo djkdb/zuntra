@@ -4,6 +4,7 @@ import type { CreateTripInput } from "@/lib/validation/trip";
 
 const TABLES = [
   "AnalyticsEvent",
+  "StoredObject",
   "AIUsageLog",
   "AIAction",
   "AIMessage",

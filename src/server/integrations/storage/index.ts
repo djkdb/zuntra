@@ -1,11 +1,13 @@
 import "server-only";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { db } from "@/server/db";
 import { env } from "@/server/env";
 
 /**
  * Object storage behind one interface: the local filesystem for development/tests, Supabase
- * Storage (or any S3-compatible service with the same REST shape) in production. Objects are
+ * Storage (or any S3-compatible service with the same REST shape) or the app's own Postgres
+ * (`database`, for Postgres-only hosting such as Neon) in production. Objects are
  * private; the app streams them through an authorised route, never via public URLs.
  */
 export interface StorageProvider {
@@ -80,8 +82,29 @@ function supabaseStorage(url: string, serviceKey: string, bucket: string): Stora
   };
 }
 
+export function databaseStorage(): StorageProvider {
+  return {
+    async put(key, body, contentType) {
+      assertKey(key);
+      const bytes = new Uint8Array(body); // own ArrayBuffer copy, as Prisma's Bytes type expects
+      await db.storedObject.upsert({ where: { key }, create: { key, contentType, body: bytes }, update: { contentType, body: bytes } });
+    },
+    async get(key) {
+      assertKey(key);
+      const row = await db.storedObject.findUnique({ where: { key } });
+      return row ? { body: new Uint8Array(row.body), contentType: row.contentType } : null;
+    },
+    async remove(keys) {
+      if (keys.length === 0) return;
+      keys.forEach(assertKey);
+      await db.storedObject.deleteMany({ where: { key: { in: keys } } });
+    },
+  };
+}
+
 export function getStorage(): StorageProvider {
   const e = env();
+  if (e.STORAGE_PROVIDER === "database") return databaseStorage();
   if (e.STORAGE_PROVIDER === "supabase") {
     if (!e.SUPABASE_URL || !e.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Supabase storage is not configured");
     return supabaseStorage(e.SUPABASE_URL, e.SUPABASE_SERVICE_ROLE_KEY, e.SUPABASE_STORAGE_BUCKET);

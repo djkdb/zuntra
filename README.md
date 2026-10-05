@@ -55,13 +55,13 @@ Playwright 브라우저가 다른 경로에 있다면 `PLAYWRIGHT_CHROMIUM_PATH`
 | `WEATHER_PROVIDER` | `open-meteo`(기본, 키 불필요) / `mock` |
 | `MAPS_PROVIDER` | `osm`(기본: Open-Meteo 지오코딩 + Nominatim) / `mock` |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | 설정 시 지도 타일을 Mapbox로 (없으면 OSM 타일) |
-| `STORAGE_PROVIDER` | `local`(개발) / `supabase` + `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET` |
+| `STORAGE_PROVIDER` | `local`(개발) / `database`(사진을 Postgres에 저장 — Neon 단독 운영) / `supabase` + `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET` |
 
 관리자 권한 부여: `npm run admin:grant -- you@example.com` → `/admin`
 
 ## 배포 (Vercel)
 
-- 환경변수: 위 표 참고 (운영에서는 `STORAGE_PROVIDER=supabase` 필수 — Vercel 파일시스템은 영구 저장소가 아님)
+- 환경변수: 위 표 참고 (운영에서는 `STORAGE_PROVIDER=database` 또는 `supabase` 필수 — Vercel 파일시스템은 영구 저장소가 아님)
 - Build Command: `npm run vercel-build` (generate → migrate deploy → build)
 - 레이트 리밋은 현재 인스턴스 메모리 기반입니다. 다중 인스턴스 운영 시 `src/server/rate-limit.ts`의
   `RateLimiter` 인터페이스 뒤에 Upstash Redis 같은 공유 저장소를 붙이세요. (AI 일일 비용 상한은 DB 기반이라 인스턴스 간에도 유지됩니다.)
@@ -74,7 +74,7 @@ Playwright 브라우저가 다른 경로에 있다면 `PLAYWRIGHT_CHROMIUM_PATH`
 준비물
 - **Workers Paid 플랜 필요** — Worker 크기(압축 약 6MB)가 무료 한도(3MB)를 넘고, bcrypt 해시가 무료 CPU 한도를 넘습니다.
 - 외부에서 접속 가능한 PostgreSQL (Neon 등). 마이그레이션은 직접 연결 주소, 런타임은 풀링 주소 권장.
-- Supabase Storage (Workers에는 파일시스템이 없으므로 `STORAGE_PROVIDER=supabase`).
+- 사진 저장: `STORAGE_PROVIDER=database`(기본 설정, Postgres에 저장) 또는 `supabase`. Workers에는 파일시스템이 없습니다.
 
 대시보드(Workers Builds, GitHub 연결)
 - Build command: `npm run cf:build`

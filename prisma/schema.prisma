@@ -584,3 +584,12 @@ model AnalyticsEvent {
 
   @@index([name, createdAt])
 }
+
+/// Photo bytes when STORAGE_PROVIDER=database — lets a Postgres-only deployment (e.g. Neon)
+/// keep photos without a separate object store. Photos are resized to ≤2048px WebP client-side.
+model StoredObject {
+  key         String   @id
+  contentType String
+  body        Bytes
+  createdAt   DateTime @default(now())
+}

@@ -20,7 +20,7 @@
   "vars": {
     "AUTH_TRUST_HOST": "true",
     "SUPABASE_STORAGE_BUCKET": "trip-photos",
-    "STORAGE_PROVIDER": "supabase",
+    "STORAGE_PROVIDER": "database",
     "WEATHER_PROVIDER": "open-meteo",
     "MAPS_PROVIDER": "osm"
   }
