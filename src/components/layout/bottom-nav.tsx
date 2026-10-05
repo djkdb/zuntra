@@ -1,6 +1,8 @@
 "use client";
 
-import { CalendarRangeIcon, HomeIcon, MapIcon, MenuIcon, SparklesIcon } from "lucide-react";
+import { CalendarRangeIcon, HomeIcon, MapIcon, MenuIcon, NotebookPenIcon, PackageCheckIcon, SettingsIcon, SparklesIcon, WalletIcon } from "lucide-react";
+import { useState } from "react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -25,12 +27,19 @@ export function BottomNav({ focusTripId }: { focusTripId: string | null }) {
     },
     { href: tripHref("companion"), label: "AI", icon: SparklesIcon, active: pathname.endsWith("/companion"), primary: true },
     { href: tripHref("map"), label: "지도", icon: MapIcon, active: pathname.endsWith("/map") },
-    {
-      href: "/settings",
-      label: "더보기",
-      icon: MenuIcon,
-      active: pathname.startsWith("/settings") || /\/(budget|packing|journal)$/.test(pathname),
-    },
+  ];
+  const moreActive = pathname.startsWith("/settings") || /\/(budget|packing|journal|report)$/.test(pathname);
+  const [moreOpen, setMoreOpen] = useState(false);
+  // The rest of a trip's sections live behind "더보기", next to settings.
+  const more = [
+    ...(tripId
+      ? [
+          { href: tripHref("budget"), label: "경비", icon: WalletIcon },
+          { href: tripHref("packing"), label: "준비물", icon: PackageCheckIcon },
+          { href: tripHref("journal"), label: "기록", icon: NotebookPenIcon },
+        ]
+      : []),
+    { href: "/settings", label: "설정", icon: SettingsIcon },
   ];
 
   return (
@@ -65,7 +74,45 @@ export function BottomNav({ focusTripId }: { focusTripId: string | null }) {
             </Link>
           </li>
         ))}
+        <li className="flex">
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            aria-haspopup="dialog"
+            aria-current={moreActive ? "page" : undefined}
+            className={cn(
+              "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors",
+              moreActive && "text-primary",
+            )}
+          >
+            <MenuIcon className="size-5" aria-hidden />
+            <span>더보기</span>
+          </button>
+        </li>
       </ul>
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+        <SheetContent side="bottom" className="pb-safe rounded-t-xl">
+          <SheetHeader>
+            <SheetTitle>더보기</SheetTitle>
+          </SheetHeader>
+          <ul className="grid grid-cols-4 gap-2 px-4 pb-6">
+            {more.map((m) => (
+              <li key={m.href}>
+                <Link
+                  href={m.href}
+                  prefetch
+                  onClick={() => setMoreOpen(false)}
+                  aria-current={pathname === m.href ? "page" : undefined}
+                  className="flex flex-col items-center gap-1.5 rounded-lg border bg-card py-3 text-xs font-medium aria-[current=page]:border-foreground"
+                >
+                  <m.icon className="size-5 text-muted-foreground" aria-hidden />
+                  {m.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </SheetContent>
+      </Sheet>
     </nav>
   );
 }

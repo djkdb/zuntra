@@ -1,6 +1,7 @@
 import { formatShortDate } from "@/lib/dates";
 import { EXPENSE_CATEGORY_LABELS, type BudgetSummaryView } from "@/lib/budget";
 import { formatMoney } from "@/lib/format";
+import { josa } from "@/lib/korean";
 import { cn } from "@/lib/utils";
 
 /**
@@ -48,6 +49,21 @@ export function BudgetMeter({ summary }: { summary: BudgetSummaryView }) {
       ) : (
         <p className="mt-3 text-sm text-muted-foreground">예산을 정하면 사용률을 보여드려요.</p>
       )}
+      {summary.planned > 0 && !isFinal ? (
+        // The plan's own estimates against the budget: answers "can I afford this itinerary?"
+        <p className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm">
+          일정에 적힌 예상 비용은 <span className="font-medium">{formatMoney(summary.planned, currency)}</span>
+          {total !== null ? (
+            summary.planned > total ? (
+              <span className="text-destructive">{josa(formatMoney(summary.planned, currency), "으로/로")} 예산을 {formatMoney(summary.planned - total, currency)} 넘어요.</span>
+            ) : (
+              <>{josa(formatMoney(summary.planned, currency), "으로/로")} 예산의 {Math.round((summary.planned / total) * 100)}%예요.</>
+            )
+          ) : (
+            `${josa(formatMoney(summary.planned, currency), "이/가") === "이" ? "이에요" : "예요"}. 예산을 정하면 비교해 드려요.`
+          )}
+        </p>
+      ) : null}
       <dl className="mt-5 grid grid-cols-2 gap-4 border-t pt-4 text-sm">
         <div>
           <dt className="text-muted-foreground">1인당</dt>
@@ -63,7 +79,8 @@ export function BudgetMeter({ summary }: { summary: BudgetSummaryView }) {
 }
 
 export function CategoryBars({ summary }: { summary: BudgetSummaryView }) {
-  const rows = [...summary.byCategory].sort((a, b) => b.amount - a.amount);
+  // Categories with nothing spent and no allocation are noise ("기타 ₩0").
+  const rows = [...summary.byCategory].filter((r) => r.amount > 0 || r.allocation !== null).sort((a, b) => b.amount - a.amount);
   const max = Math.max(...rows.map((r) => Math.max(r.amount, r.allocation ?? 0)), 1);
   const hasAllocation = rows.some((r) => r.allocation !== null);
   return (

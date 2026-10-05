@@ -15,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { josa } from "@/lib/korean";
 
 export function DeleteTripButton({ tripId, title }: { tripId: string; title: string }) {
   const [open, setOpen] = useState(false);
@@ -33,14 +34,14 @@ export function DeleteTripButton({ tripId, title }: { tripId: string; title: str
   return (
     <AlertDialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
       <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
+        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive max-sm:size-9 max-sm:px-0">
           <Trash2Icon data-icon="inline-start" aria-hidden />
-          삭제
+          <span className="max-sm:sr-only">삭제</span>
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>‘{title}’을(를) 삭제할까요?</AlertDialogTitle>
+          <AlertDialogTitle>‘{title}’{josa(title, "을/를")} 삭제할까요?</AlertDialogTitle>
           <AlertDialogDescription>
             일정, 경비, 준비물, 여행 기록이 모두 함께 삭제되며 되돌릴 수 없어요.
           </AlertDialogDescription>

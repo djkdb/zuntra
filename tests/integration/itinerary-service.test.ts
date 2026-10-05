@@ -149,3 +149,32 @@ describe("editing", () => {
     expect(await db.place.count()).toBe(0);
   });
 });
+
+describe("concurrent edits", () => {
+  it("keeps both edits to different fields and rejects a stale overwrite", async () => {
+    const { user, tripId, day1 } = await setup();
+    const { days } = await addItem(tripId, user.id, stop(day1, "이치란 본점", 720));
+    const opened = days[0]!.items[0]!;
+
+    // Two editors opened the same version; A changes the note, B the cost.
+    await updateItem(tripId, user.id, opened.id, { note: "줄 길면 2호점", expectedUpdatedAt: opened.updatedAt });
+    const error = await expectAppError(
+      updateItem(tripId, user.id, opened.id, { estimatedCost: 55000, expectedUpdatedAt: opened.updatedAt }),
+      "CONFLICT",
+    );
+    expect(error.status).toBe(409);
+
+    // Without a version (e.g. the done checkbox) a single-field patch still applies.
+    await updateItem(tripId, user.id, opened.id, { estimatedCost: 55000 });
+    const item = (await getItinerary(tripId, user.id)).days[0]!.items[0]!;
+    expect(item.note).toBe("줄 길면 2호점");
+    expect(item.estimatedCost).toBe(55000);
+  });
+
+  it("rejects junk that used to be coerced into numbers", async () => {
+    const { user, tripId, day1 } = await setup();
+    await expectAppError(addItem(tripId, user.id, stop(day1, "x", 600, { durationMinutes: true })), "VALIDATION");
+    const { days } = await addItem(tripId, user.id, stop(day1, "y", 600));
+    await expectAppError(updateItem(tripId, user.id, days[0]!.items[0]!.id, { startMinute: "" }), "VALIDATION");
+  });
+});

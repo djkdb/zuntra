@@ -10,7 +10,8 @@ export interface ApiErrorBody {
 export function errorResponse(error: unknown): Response {
   if (error instanceof AppError) {
     const body: ApiErrorBody = { error: { code: error.code, message: error.message, fields: error.fields } };
-    return Response.json(body, { status: error.status });
+    const headers = error.retryAfterSeconds ? { "Retry-After": String(error.retryAfterSeconds) } : undefined;
+    return Response.json(body, { status: error.status, headers });
   }
   // Unknown errors: log server-side without request payloads, return a generic message.
   // Messages from the DB driver can echo user input, so only the error class and code are logged.
@@ -48,7 +49,10 @@ export async function guardWrite(request: Request, userId: string) {
     if (!host || new URL(origin).host !== host) throw new AppError("FORBIDDEN", "허용되지 않은 요청이에요.");
   }
   const limit = await apiWriteLimiter.consume(`user:${userId}`);
-  if (!limit.ok) throw new AppError("RATE_LIMITED", "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.");
+  if (!limit.ok) {
+    const seconds = Math.max(1, Math.ceil(limit.retryAfterMs / 1000));
+    throw new AppError("RATE_LIMITED", "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.", undefined, seconds);
+  }
 }
 
 export async function readJson(request: Request): Promise<unknown> {

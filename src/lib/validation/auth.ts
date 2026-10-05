@@ -10,10 +10,9 @@ export const emailSchema = z
 
 export const passwordSchema = z
   .string()
-  .min(8, "비밀번호는 8자 이상이어야 해요.")
   .max(72, "비밀번호는 72자 이하여야 해요.") // bcrypt only uses the first 72 bytes
-  .regex(/[A-Za-z]/, "영문자를 하나 이상 포함해 주세요.")
-  .regex(/[0-9]/, "숫자를 하나 이상 포함해 주세요.");
+  // One message for every rule, so a short password already tells the whole requirement.
+  .refine((v) => v.length >= 8 && /[A-Za-z]/.test(v) && /[0-9]/.test(v), "8자 이상, 영문과 숫자를 섞어 주세요.");
 
 export const signUpSchema = z.object({
   name: z.string().trim().min(1, "이름을 입력해 주세요.").max(40, "이름은 40자 이내로 입력해 주세요."),

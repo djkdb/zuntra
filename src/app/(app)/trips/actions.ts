@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { FormState } from "@/lib/action-state";
-import { fieldErrors, formDataToObject, formValues } from "@/lib/validation/common";
+import { fieldErrors, formDataToObject, formValues, invalidFormMessage } from "@/lib/validation/common";
 import { createTripSchema } from "@/lib/validation/trip";
 import { requireUser } from "@/server/auth/session";
 import { AppError } from "@/server/errors";
@@ -15,7 +15,7 @@ export async function createTripAction(_prev: FormState, formData: FormData): Pr
   const user = await requireUser();
   const parsed = createTripSchema.safeParse(formDataToObject(formData, ARRAY_KEYS));
   if (!parsed.success) {
-    return { message: "입력값을 확인해 주세요.", fields: fieldErrors(parsed.error), values: formValues(formData) };
+    return { message: invalidFormMessage(fieldErrors(parsed.error)), fields: fieldErrors(parsed.error), values: formValues(formData) };
   }
 
   let tripId: string;
@@ -34,7 +34,7 @@ export async function updateTripAction(tripId: string, _prev: FormState, formDat
   const user = await requireUser();
   const parsed = createTripSchema.safeParse(formDataToObject(formData, ARRAY_KEYS));
   if (!parsed.success) {
-    return { message: "입력값을 확인해 주세요.", fields: fieldErrors(parsed.error), values: formValues(formData) };
+    return { message: invalidFormMessage(fieldErrors(parsed.error)), fields: fieldErrors(parsed.error), values: formValues(formData) };
   }
 
   try {

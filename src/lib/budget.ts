@@ -24,6 +24,10 @@ export interface ExpenseView {
   category: ExpenseCategory;
   amount: number;
   currency: string;
+  /** Set when paid in another currency; `amount` is the converted figure. */
+  originalAmount: number | null;
+  originalCurrency: string | null;
+  fxRate: number | null;
   note: string | null;
   spentAt: string;
   date: string;
@@ -34,6 +38,8 @@ export interface ExpenseView {
 export interface Insight {
   tone: "info" | "good" | "warning";
   text: string;
+  /** Restates the totals card (amount spent, % of budget); the budget page leaves these out. */
+  restatesTotals?: boolean;
 }
 
 export interface BudgetSummaryView {
@@ -49,4 +55,6 @@ export interface BudgetSummaryView {
   byDay: { dayNumber: number; date: string; amount: number }[];
   insights: Insight[];
   isFinal: boolean;
+  /** Sum of the itinerary's estimated costs: "will this plan fit the budget?" */
+  planned: number;
 }

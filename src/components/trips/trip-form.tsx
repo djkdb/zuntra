@@ -1,9 +1,9 @@
 "use client";
 
 import { CalendarDaysIcon } from "lucide-react";
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import { ChoiceGroup } from "@/components/forms/choice-group";
-import { Field, FormMessage } from "@/components/forms/field";
+import { Field, FormMessage, useFocusFirstError } from "@/components/forms/field";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -31,7 +31,7 @@ export interface TripFormDefaults {
   travelerCount?: number;
   styles?: string[];
   pace?: string | null;
-  budgetAmount?: number | null;
+  budgetAmount?: number | string | null;
   currency?: string;
   preferredPlaces?: string[];
   preferredFoods?: string[];
@@ -57,7 +57,9 @@ function splitList(v: string | undefined) {
 }
 
 export function TripForm({ action, defaults: initial, submitLabel, pendingLabel, footnote }: TripFormProps) {
-  const [state, formAction] = useActionState(action, initialFormState);
+  const [state, formAction, isPending] = useActionState(action, initialFormState);
+  const formRef = useRef<HTMLFormElement>(null);
+  useFocusFirstError(formRef, state);
   const v = state.values;
   const defaults: TripFormDefaults = v
     ? {
@@ -69,7 +71,8 @@ export function TripForm({ action, defaults: initial, submitLabel, pendingLabel,
         travelerCount: Number(one(v.travelerCount)) || undefined,
         styles: Array.isArray(v.styles) ? v.styles : v.styles ? [v.styles] : [],
         pace: one(v.pace),
-        budgetAmount: one(v.budgetAmount) ? Number(one(v.budgetAmount)) : null,
+        // Echo what was typed ("60만원"), never a parsed NaN.
+        budgetAmount: one(v.budgetAmount) || null,
         currency: one(v.currency),
         preferredPlaces: splitList(one(v.preferredPlaces)),
         preferredFoods: splitList(one(v.preferredFoods)),
@@ -104,7 +107,17 @@ export function TripForm({ action, defaults: initial, submitLabel, pendingLabel,
     : [...TIME_ZONES, { id: timezone, label: timezone }];
 
   return (
-    <form action={formAction} className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_17rem] xl:gap-12" noValidate>
+    <form
+      ref={formRef}
+      action={formAction}
+      // Submitting through a transition keeps every field as typed on a validation error;
+      // the default form action would reset the form (the time zone select lost its value).
+      onSubmit={(e) => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        startTransition(() => formAction(data));
+      }}
+      className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_17rem] xl:gap-12" noValidate>
       <div className="min-w-0 space-y-8">
         <FormMessage message={state.message} />
 
@@ -266,7 +279,7 @@ export function TripForm({ action, defaults: initial, submitLabel, pendingLabel,
                   {...props}
                   name="budgetAmount"
                   inputMode="decimal"
-                  placeholder="예: 1500000"
+                  placeholder="예: 1500000 또는 150만"
                   defaultValue={defaults.budgetAmount ?? ""}
                 />
               )}
@@ -301,7 +314,7 @@ export function TripForm({ action, defaults: initial, submitLabel, pendingLabel,
                 name="notes"
                 rows={3}
                 maxLength={2000}
-                placeholder="예: 너무 빡빡한 일정은 싫어요. 저녁엔 이자카야에 가고 싶어요."
+                placeholder="예: 너무 빡빡한 일정은 싫어요. 저녁엔 현지 술집에 가 보고 싶어요."
                 defaultValue={defaults.notes ?? ""}
               />
             )}
@@ -309,7 +322,7 @@ export function TripForm({ action, defaults: initial, submitLabel, pendingLabel,
         </section>
 
         <div className="sticky bottom-20 z-10 -mx-4 flex items-center gap-3 border-t bg-background/90 px-4 py-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 lg:hidden">
-          <SubmitButton size="lg" className="w-full sm:w-auto" pendingLabel={pendingLabel}>
+          <SubmitButton size="lg" className="w-full sm:w-auto" pendingLabel={pendingLabel} pending={isPending}>
             <CalendarDaysIcon data-icon="inline-start" aria-hidden />
             {submitLabel}
           </SubmitButton>
@@ -331,7 +344,7 @@ export function TripForm({ action, defaults: initial, submitLabel, pendingLabel,
           <SummaryRow label="인원" value={Number(travelers) > 0 ? `${travelers}명` : null} />
           <SummaryRow label="시간대" value={timezoneOptions.find((z) => z.id === timezone)?.label ?? timezone} />
         </dl>
-        <SubmitButton className="mt-4 w-full" pendingLabel={pendingLabel}>
+        <SubmitButton className="mt-4 w-full" pendingLabel={pendingLabel} pending={isPending}>
           <CalendarDaysIcon data-icon="inline-start" aria-hidden />
           {submitLabel}
         </SubmitButton>

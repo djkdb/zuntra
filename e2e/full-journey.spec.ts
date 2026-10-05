@@ -52,8 +52,13 @@ test("a traveler goes from signup to the AI travel report", async ({ page }) => 
 
   // AI에게 질문 → 제안 승인
   await page.goto(`${tripPath}/companion`);
-  await page.getByLabel("AI에게 메시지 보내기").fill("밥 먹고 어디 가지?");
-  await page.keyboard.press("Enter");
+  // Typing before hydration finishes gets reset by React; retry until the send button wakes up.
+  const chatInput = page.getByLabel("AI에게 메시지 보내기");
+  await expect(async () => {
+    await chatInput.fill("밥 먹고 어디 가지?");
+    await expect(page.getByRole("button", { name: "보내기", exact: true })).toBeEnabled({ timeout: 1000 });
+  }).toPass();
+  await chatInput.press("Enter");
   const addAction = page.getByRole("button", { name: "일정에 추가" });
   await expect(addAction).toBeVisible({ timeout: 20_000 });
   await addAction.click();
@@ -67,11 +72,16 @@ test("a traveler goes from signup to the AI travel report", async ({ page }) => 
   // 경비
   await page.goto(`${tripPath}/budget`);
   await page.getByRole("button", { name: "지출 기록" }).first().click();
+  // Abroad, the form starts in the local currency and shows the converted amount.
+  await expect(page.getByLabel("통화")).toHaveValue("JPY");
+  await page.getByLabel("금액", { exact: true }).fill("1,000");
+  await expect(page.getByText(/≈ ₩[\d,]+/)).toBeVisible();
+  await page.getByLabel("통화").selectOption("KRW");
   await page.getByLabel("금액", { exact: true }).fill("12,000");
   await page.getByLabel("내용").fill("이치란 라멘");
   await page.getByRole("button", { name: "저장" }).click();
   await expect(page.getByText("지출을 기록했어요.")).toBeVisible();
-  await expect(page.getByText("현재까지 ₩12,000을(를) 사용했어요.")).toBeVisible();
+  await expect(page.getByText("₩12,000").first()).toBeVisible();
 
   // 준비물
   await page.goto(`${tripPath}/packing`);

@@ -1,16 +1,18 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 import { completeOnboardingAction } from "@/app/profile-actions";
-import { FormMessage } from "@/components/forms/field";
+import { FormMessage, useFocusFirstError } from "@/components/forms/field";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { initialFormState } from "@/lib/action-state";
 import { TravelProfileFields, type TravelProfileDefaults, profileDefaultsFrom } from "./travel-profile-fields";
 
 export function OnboardingForm({ defaults }: { defaults: TravelProfileDefaults }) {
   const [state, action] = useActionState(completeOnboardingAction, initialFormState);
+  const formRef = useRef<HTMLFormElement>(null);
+  useFocusFirstError(formRef, state);
   return (
-    <form action={action} className="space-y-9" noValidate>
+    <form ref={formRef} action={action} className="space-y-9" noValidate>
       <FormMessage message={state.message} />
       <TravelProfileFields defaults={profileDefaultsFrom(state.values, defaults)} errors={state.fields} />
       <SubmitButton size="lg" className="w-full sm:w-auto" pendingLabel="저장 중…">

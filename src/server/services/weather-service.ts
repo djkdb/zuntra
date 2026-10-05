@@ -104,7 +104,7 @@ export async function getTripWeather(tripId: string, userId: string) {
     suggestions.push({
       dayId: d.id,
       dayNumber: d.dayNumber,
-      message: `Day ${d.dayNumber} 오후에 비가 예상됩니다.`,
+      message: `${d.dayNumber}일차 오후에 비 소식이 있어요.`,
       outdoorTitles: outdoor.map((i) => i.title),
     });
   }

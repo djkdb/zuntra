@@ -39,10 +39,10 @@ import {
   formatDuration,
   formatMinute,
 } from "@/lib/itinerary";
-import { MOOD_OPTIONS } from "@/lib/journal";
 import { minuteFromTime } from "@/lib/schedule";
 import { cn } from "@/lib/utils";
 import type { ExpenseCategory, PlaceCategory } from "@/generated/prisma/enums";
+import { MoodIcon } from "@/components/journal/mood-icon";
 
 const LeafletMap = dynamic(
   () => import("@/components/map/leaflet-map").then((m) => m.LeafletMap),
@@ -717,6 +717,7 @@ function DemoBudget({ spent }: { spent: number }) {
   );
   const summary: BudgetSummaryView = {
     currency: DEMO_TRIP.currency,
+    planned: 0,
     travelerCount: DEMO_TRIP.travelerCount,
     total: budget,
     allocations: {},
@@ -850,7 +851,7 @@ function DemoJournalTab() {
         <article key={j.id} className="rounded-lg border bg-card p-4">
           <p className="text-xs text-muted-foreground">
             {formatShortDate(j.date)}{" "}
-            {j.mood ? MOOD_OPTIONS.find((m) => m.value === j.mood)?.emoji : ""}{" "}
+            {j.mood ? <MoodIcon mood={j.mood} className="inline size-3.5 align-[-2px]" /> : null}{" "}
             {j.rating ? "★".repeat(j.rating) : ""}
           </p>
           <p className="mt-1">{j.content}</p>

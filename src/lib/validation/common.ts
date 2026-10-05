@@ -1,5 +1,9 @@
 import { z } from "zod";
+
+// Default validation messages (enum, type, size…) in Korean; field-specific messages still win.
+z.config(z.locales.ko());
 import { isValidIsoDate } from "@/lib/dates";
+import { parseAmountText } from "@/lib/format";
 
 /** Trims, and turns empty strings into undefined so optional fields stay optional. */
 export const optionalText = (max: number) =>
@@ -65,4 +69,22 @@ export function formValues(formData: FormData, omit: string[] = []): Record<stri
     out[key] = values.length > 1 ? values : (values[0] ?? "");
   }
   return out;
+}
+
+/**
+ * A number given as a JSON number or a numeric string (forms submit strings; "1,500" is fine).
+ * Unlike z.coerce it rejects booleans, empty strings and other junk instead of turning them
+ * into 1 / 0.
+ */
+export const numeric = (message = "숫자를 입력해 주세요.") =>
+  z.preprocess((v) => {
+    if (typeof v !== "string") return v;
+    const n = parseAmountText(v);
+    return Number.isNaN(n) ? v : n;
+  }, z.number({ error: (issue) => (issue.input === undefined || issue.input === "" ? message : "숫자로 입력해 주세요.") }).finite(message));
+
+/** The banner above a form with field errors: says how many, not just "check your input". */
+export function invalidFormMessage(fields: Record<string, string>): string {
+  const count = Object.keys(fields).length;
+  return count > 1 ? `${count}개 항목을 확인해 주세요.` : "표시된 항목을 확인해 주세요.";
 }

@@ -384,8 +384,13 @@ model Expense {
   createdById     String?
   title           String
   category        ExpenseCategory
+  /// In the trip's currency (what budgets and totals add up).
   amount          Decimal         @db.Decimal(12, 2)
   currency        String          @db.Char(3)
+  /// What was actually paid when it was in another currency, and the rate used to convert it.
+  originalAmount  Decimal?        @db.Decimal(12, 2)
+  originalCurrency String?        @db.Char(3)
+  fxRate          Decimal?        @db.Decimal(18, 8)
   note            String?
   spentAt         DateTime
   createdAt       DateTime        @default(now())

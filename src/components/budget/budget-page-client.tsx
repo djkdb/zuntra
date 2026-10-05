@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangleIcon, CheckCircle2Icon, InfoIcon, Loader2Icon, PencilIcon, PlusIcon, SettingsIcon, Trash2Icon, WalletIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -13,17 +13,20 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { ApiError, apiFetch, errorMessage } from "@/lib/api-client";
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, type ExpenseView } from "@/lib/budget";
 import { formatShortDate } from "@/lib/dates";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, parseAmountText } from "@/lib/format";
+import { CURRENCIES } from "@/lib/constants";
+import { convertCurrency, referenceRate } from "@/lib/fx";
 import { cn } from "@/lib/utils";
 import type { BudgetData } from "@/server/services/budget-service";
 import { BudgetMeter, CategoryBars, DailyColumns } from "./budget-charts";
+import { useSeededQuery } from "@/components/use-seeded-query";
 
 type ExpenseDialogState = { mode: "create" } | { mode: "edit"; expense: ExpenseView } | null;
 
 export function BudgetPageClient({ tripId, initialData }: { tripId: string; initialData: BudgetData }) {
   const qc = useQueryClient();
   const key = ["budget", tripId] as const;
-  const { data = initialData } = useQuery({
+  const { data = initialData } = useSeededQuery({
     queryKey: key,
     queryFn: ({ signal }) => apiFetch<BudgetData>(`/api/trips/${tripId}/budget`, { signal }),
     initialData,
@@ -31,6 +34,7 @@ export function BudgetPageClient({ tripId, initialData }: { tripId: string; init
   const [expenseDialog, setExpenseDialog] = useState<ExpenseDialogState>(null);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const { summary, expenses, canEdit } = data;
+  const insights = summary.insights.filter((i) => !i.restatesTotals);
 
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch<BudgetData>(`/api/trips/${tripId}/expenses/${id}`, { method: "DELETE" }),
@@ -71,14 +75,15 @@ export function BudgetPageClient({ tripId, initialData }: { tripId: string; init
             AI 지출 분석
           </h2>
           <ul className="mt-3 space-y-3">
-            {summary.insights.map((i) => (
+            {insights.length === 0 ? <li className="text-sm text-muted-foreground">눈에 띄는 점이 없어요. 계획대로 쓰고 있어요.</li> : null}
+            {insights.map((i) => (
               <li key={i.text} className="flex gap-2.5 text-sm leading-relaxed">
                 {i.tone === "warning" ? (
                   <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-[oklch(0.6_0.14_65)]" aria-label="주의" />
                 ) : i.tone === "good" ? (
                   <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-success" aria-label="좋음" />
                 ) : (
-                  <InfoIcon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                  <InfoIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
                 )}
                 {i.text}
               </li>
@@ -129,7 +134,14 @@ export function BudgetPageClient({ tripId, initialData }: { tripId: string; init
                         <span className="block truncate font-medium">{e.title}</span>
                         {e.note ? <span className="block truncate text-xs text-muted-foreground">{e.note}</span> : null}
                       </span>
-                      <span className="font-semibold tabular-nums">{formatMoney(e.amount, e.currency)}</span>
+                      <span className="text-right">
+                        <span className="block font-semibold tabular-nums">
+                          {e.originalCurrency && e.originalAmount !== null ? formatMoney(e.originalAmount, e.originalCurrency) : formatMoney(e.amount, e.currency)}
+                        </span>
+                        {e.originalCurrency ? (
+                          <span className="block text-xs text-muted-foreground tabular-nums">≈ {formatMoney(e.amount, e.currency)}</span>
+                        ) : null}
+                      </span>
                       {canEdit ? (
                         <span className="flex">
                           <Button variant="ghost" size="icon-sm" aria-label={`${e.title} 수정`} onClick={() => setExpenseDialog({ mode: "edit", expense: e })}>
@@ -201,12 +213,24 @@ function ExpenseDialog({
   });
   const fields = save.error instanceof ApiError ? save.error.fields ?? {} : {};
 
+  // Pay in whatever currency you paid in; it's converted to the trip currency with a rate you
+  // can see and change (pre-filled with a reference value).
+  const tripCurrency = data.summary.currency;
+  const currencyOptions = Array.from(new Set([tripCurrency, data.trip.localCurrency, "KRW", ...CURRENCIES.map((c) => c.code)].filter(Boolean))) as string[];
+  const [currency, setCurrency] = useState(editing?.originalCurrency ?? (editing ? tripCurrency : (data.trip.localCurrency ?? tripCurrency)));
+  const [amountText, setAmountText] = useState(String(editing?.originalAmount ?? editing?.amount ?? ""));
+  const [rateText, setRateText] = useState(() => formatRate(editing?.fxRate ?? referenceRate(currency, tripCurrency)));
+  const foreign = currency !== tripCurrency;
+  const parsedAmount = parseAmountText(amountText);
+  const parsedRate = Number(rateText.replace(/,/g, ""));
+  const preview = foreign && parsedAmount > 0 && parsedRate > 0 ? convertCurrency(parsedAmount, currency, tripCurrency, parsedRate) : null;
+
   return (
     <Dialog open onOpenChange={(o) => !o && !save.isPending && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{editing ? "지출 수정" : "지출 기록"}</DialogTitle>
-          <DialogDescription>금액은 여행 통화({data.summary.currency})로 기록돼요.</DialogDescription>
+          <DialogDescription>낸 통화 그대로 적으면 여행 통화({tripCurrency})로 바꿔서 합계에 넣어요.</DialogDescription>
         </DialogHeader>
         <form
           className="space-y-4"
@@ -217,16 +241,45 @@ function ExpenseDialog({
             save.mutate({
               title: fd.get("title"),
               category: fd.get("category"),
-              amount: String(fd.get("amount") ?? "").replace(/[,\s]/g, ""),
+              amount: amountText,
+              currency,
+              fxRate: foreign ? rateText.replace(/,/g, "") : undefined,
               date: fd.get("date"),
               note: fd.get("note") || null,
             });
           }}
         >
           <FormMessage message={save.isError ? errorMessage(save.error) : undefined} />
-          <Field label="금액" error={fields.amount}>
-            {(p) => <Input {...p} name="amount" inputMode="decimal" defaultValue={editing?.amount ?? ""} placeholder="0" autoFocus required />}
-          </Field>
+          <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] gap-3">
+            <Field label="금액" error={fields.amount} hint={preview !== null ? `≈ ${formatMoney(preview, tripCurrency)}` : undefined}>
+              {(p) => (
+                <Input {...p} name="amount" inputMode="decimal" value={amountText} onChange={(e) => setAmountText(e.target.value)} placeholder="0" autoFocus required />
+              )}
+            </Field>
+            <Field label="통화" error={fields.currency}>
+              {(p) => (
+                <NativeSelect
+                  {...p}
+                  value={currency}
+                  onChange={(e) => {
+                    setCurrency(e.target.value);
+                    setRateText(formatRate(referenceRate(e.target.value, tripCurrency)));
+                  }}
+                >
+                  {currencyOptions.map((c) => (
+                    <option key={c} value={c}>
+                      {CURRENCIES.find((x) => x.code === c)?.label ?? c}
+                    </option>
+                  ))}
+                </NativeSelect>
+              )}
+            </Field>
+          </div>
+          {foreign ? (
+            <Field label={`환율 (1 ${currency} = ? ${tripCurrency})`} error={fields.fxRate} hint="참고용 기본값이에요. 카드 명세서나 환전 영수증 값으로 바꿔도 돼요.">
+              {(p) => <Input {...p} inputMode="decimal" value={rateText} onChange={(e) => setRateText(e.target.value)} />}
+            </Field>
+          ) : null}
           <Field label="내용" error={fields.title}>
             {(p) => <Input {...p} name="title" maxLength={80} defaultValue={editing?.title ?? ""} placeholder="예: 이치란 라멘" required />}
           </Field>
@@ -335,4 +388,9 @@ function BudgetDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+/** A rate with enough digits to be useful either way round (9.1 KRW/JPY, 0.0067 USD/JPY…). */
+function formatRate(rate: number): string {
+  return String(Number(rate.toPrecision(rate >= 1 ? 6 : 4)));
 }

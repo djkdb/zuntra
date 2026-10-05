@@ -32,3 +32,15 @@ export async function tripPageData<T>(tripId: string, userId: string, load: () =
   const [trip, data] = await Promise.all([getTripForPage(tripId, userId), load().catch(toNotFound)]);
   return { trip, data };
 }
+
+/** Counts behind the overview's "what's left to do" list. Call after getTripForPage (access). */
+export async function getTripProgress(tripId: string) {
+  const { db } = await import("@/server/db");
+  const [packingTotal, packingPacked, expenseCount, journalCount] = await Promise.all([
+    db.packingItem.count({ where: { tripId } }),
+    db.packingItem.count({ where: { tripId, isPacked: true } }),
+    db.expense.count({ where: { tripId } }),
+    db.journalEntry.count({ where: { tripId } }),
+  ]);
+  return { packingTotal, packingPacked, expenseCount, journalCount };
+}

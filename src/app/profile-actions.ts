@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { FormState } from "@/lib/action-state";
-import { fieldErrors, formDataToObject, formValues } from "@/lib/validation/common";
+import { fieldErrors, formDataToObject, formValues, invalidFormMessage } from "@/lib/validation/common";
 import { travelProfileSchema } from "@/lib/validation/profile";
 import { requireUser } from "@/server/auth/session";
 import { signOut } from "@/server/auth";
@@ -17,7 +17,7 @@ export async function completeOnboardingAction(_prev: FormState, formData: FormD
   const user = await requireUser();
   const parsed = parseProfile(formData);
   if (!parsed.success) {
-    return { message: "입력값을 확인해 주세요.", fields: fieldErrors(parsed.error), values: formValues(formData) };
+    return { message: invalidFormMessage(fieldErrors(parsed.error)), fields: fieldErrors(parsed.error), values: formValues(formData) };
   }
   await saveTravelProfile(user.id, parsed.data);
   redirect("/dashboard?welcome=1");
@@ -27,7 +27,7 @@ export async function updateProfileAction(_prev: FormState, formData: FormData):
   const user = await requireUser();
   const parsed = parseProfile(formData);
   if (!parsed.success) {
-    return { message: "입력값을 확인해 주세요.", fields: fieldErrors(parsed.error), values: formValues(formData) };
+    return { message: invalidFormMessage(fieldErrors(parsed.error)), fields: fieldErrors(parsed.error), values: formValues(formData) };
   }
   await saveTravelProfile(user.id, parsed.data);
   revalidatePath("/", "layout");

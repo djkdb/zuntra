@@ -31,7 +31,7 @@ export async function apiFetch<T>(path: string, init: { method?: string; body?: 
     | null;
   if (!response.ok || !body || body.error) {
     const err = body?.error;
-    throw new ApiError(err?.code ?? "INTERNAL", err?.message ?? "정보를 가져오지 못했습니다.", response.status, err?.fields);
+    throw new ApiError(err?.code ?? "INTERNAL", err?.message ?? "정보를 가져오지 못했어요.", response.status, err?.fields);
   }
   return body.data as T;
 }

@@ -166,7 +166,9 @@ export function mockPlan(ctx: PlannerContext): PlanDraft {
 
     for (const slot of slots) {
       const cats = categoriesFor(slot.kind);
-      const candidates = city.pois.filter((poi) => cats.includes(poi.category) && !used.has(poi.name));
+      const candidates = city.pois.filter(
+        (poi) => cats.includes(poi.category) && !used.has(poi.name) && !(day.isLast && ctx.totalDays > 1 && poi.minutes > 150),
+      );
       if (candidates.length === 0) continue;
       const best = candidates
         .map((poi) => ({ poi, s: score(poi, slot.kind, ctx, prev, day.rainy && slot.at >= h(12)) }))
@@ -176,6 +178,8 @@ export function mockPlan(ctx: PlannerContext): PlanDraft {
       const start = Math.max(slot.at, clock + (travel ?? 0));
       const rounded = Math.ceil(start / 5) * 5;
       if (rounded + best.minutes > h(22, 30)) break;
+      // Departure day: only what fits before heading to the airport (~13:00).
+      if (day.isLast && ctx.totalDays > 1 && rounded + best.minutes > h(13)) continue;
 
       used.add(best.name);
       const perPerson = convertCurrency(best.cost, city.currency, ctx.currency);

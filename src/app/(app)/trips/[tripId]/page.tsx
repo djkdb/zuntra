@@ -1,4 +1,4 @@
-import { CalendarPlusIcon, ChevronRightIcon, SparklesIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FlashToast } from "@/components/states/flash-toast";
@@ -6,7 +6,6 @@ import { TodayView } from "@/components/today/today-view";
 import { RainBanner } from "@/components/weather/rain-banner";
 import { WeatherStrip } from "@/components/weather/weather-strip";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { TIME_ZONES, TRAVEL_PACE_LABELS, TRAVEL_STYLE_LABELS } from "@/lib/constants";
 import { diffDaysIso, formatDDay, formatShortDate, todayInTimeZone } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
@@ -14,7 +13,9 @@ import { phaseOf } from "@/lib/trips";
 import { cn } from "@/lib/utils";
 import { requireOnboardedUser } from "@/server/auth/session";
 import { getTodayData } from "@/server/services/today-service";
-import { getTripForPage } from "@/server/services/trip-queries";
+import { getTripForPage, getTripProgress } from "@/server/services/trip-queries";
+import { isDomesticTrip } from "@/lib/timezone-guess";
+import { type NextStep, NextSteps } from "@/components/trips/next-steps";
 
 export async function generateMetadata(props: PageProps<"/trips/[tripId]">): Promise<Metadata> {
   const { tripId } = await props.params;
@@ -27,12 +28,57 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
   const [{ tripId }, searchParams] = await Promise.all([props.params, props.searchParams]);
   const user = await requireOnboardedUser();
   const trip = await getTripForPage(tripId, user.id);
-  const todayData = await getTodayData(tripId, user.id);
+  const [todayData, progress] = await Promise.all([getTodayData(tripId, user.id), getTripProgress(tripId)]);
   const phase = phaseOf(trip);
   const canEdit = trip.role !== "VIEWER";
   const today = todayInTimeZone(trip.timezone);
   const totalItems = trip.days.reduce((sum, d) => sum + d.itemCount, 0);
   const tzLabel = TIME_ZONES.find((z) => z.id === trip.timezone)?.label ?? trip.timezone;
+
+  const base = `/trips/${trip.id}`;
+  const emptyDays = trip.days.filter((d) => d.itemCount === 0).length;
+  const abroad = !isDomesticTrip(trip.destination, trip.timezone);
+  const stepStatus =
+    phase === "upcoming" ? `출발까지 ${formatDDay(trip.startDate, today)}` : phase === "ongoing" ? `여행 ${diffDaysIso(trip.startDate, today) + 1}일차` : "여행이 끝났어요";
+  const steps: NextStep[] =
+    phase === "upcoming"
+      ? [
+          {
+            label: "일정 채우기",
+            hint: totalItems === 0 ? "AI가 여행 전체 일정을 한 번에 짜 드려요." : `아직 비어 있는 날이 ${emptyDays}일 있어요.`,
+            href: `${base}/plan`,
+            done: totalItems > 0 && emptyDays === 0,
+          },
+          {
+            label: "예산 정하기",
+            hint: "항공·숙소를 빼고 현지에서 쓸 돈을 정해 두면 사용률을 알려 드려요.",
+            href: `${base}/budget`,
+            done: trip.budgetAmount !== null,
+          },
+          {
+            label: abroad ? "준비물 챙기기 (여권 포함)" : "준비물 챙기기",
+            hint:
+              progress.packingTotal === 0
+                ? "여행지와 날씨에 맞춰 AI가 체크리스트를 만들어 드려요."
+                : `${progress.packingTotal}개 중 ${progress.packingPacked}개 챙겼어요.`,
+            href: `${base}/packing`,
+            done: progress.packingTotal > 0 && progress.packingPacked === progress.packingTotal,
+          },
+          ...(abroad
+            ? [{ label: "현지에서 물어볼 것 정리", hint: "공항에서 시내 가는 법, 환전, 교통패스를 AI에게 물어보세요.", href: `${base}/companion`, done: false }]
+            : []),
+        ]
+      : phase === "ongoing"
+        ? [
+            { label: "오늘 일정 확인", hint: "다음 장소와 이동시간을 확인해요.", href: `${base}/plan`, done: false },
+            { label: "쓴 돈 기록", hint: progress.expenseCount === 0 ? "아직 기록한 지출이 없어요." : `지출 ${progress.expenseCount}건을 기록했어요.`, href: `${base}/budget`, done: false },
+            { label: "오늘의 기록 남기기", hint: "사진과 한 줄 메모로 남겨 두면 리포트에 담겨요.", href: `${base}/journal`, done: false },
+          ]
+        : [
+            { label: "여행 기록 정리", hint: `기록 ${progress.journalCount}개가 있어요.`, href: `${base}/journal`, done: progress.journalCount > 0 },
+            { label: "여행 리포트 보기", hint: "장소·지출·기록을 모은 회고를 만들어요.", href: trip.status === "COMPLETED" ? `${base}/report` : `${base}/journal`, done: trip.status === "COMPLETED" },
+          ];
+  const stepTitle = phase === "upcoming" ? "출발 전에 할 일" : phase === "ongoing" ? "오늘 할 일" : "여행 마무리";
 
   const details: Array<[string, React.ReactNode]> = [
     ["인원", `${trip.travelerCount}명`],
@@ -97,40 +143,11 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
           </ol>
         </section>
 
-        {todayData.weather ? <WeatherStrip days={todayData.weather.days} stale={todayData.weather.stale} /> : null}
+        {todayData.weather ? <WeatherStrip days={todayData.weather.days} stale={todayData.weather.stale} today={today} /> : null}
       </div>
 
       <aside aria-labelledby="trip-info" className="space-y-5">
-        <section aria-labelledby="next-step" className="rounded-lg border bg-card p-4">
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="size-2 rounded-full bg-sunset" aria-hidden />
-          {phase === "upcoming"
-            ? `출발까지 ${formatDDay(trip.startDate, today)}`
-            : phase === "ongoing"
-              ? `여행 ${diffDaysIso(trip.startDate, today) + 1}일차`
-              : "여행이 끝났어요"}
-        </p>
-        <h2 id="next-step" className="mt-1.5 font-semibold">
-          {totalItems === 0 ? "이제 일정을 채워볼까요?" : `${totalItems}개의 일정이 준비되어 있어요.`}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          날짜별로 가고 싶은 곳을 추가하거나, AI에게 취향에 맞는 일정을 부탁할 수 있어요.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link href={`/trips/${trip.id}/plan`}>
-              <CalendarPlusIcon data-icon="inline-start" aria-hidden />
-              일정 만들기
-            </Link>
-          </Button>
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/trips/${trip.id}/companion`}>
-              <SparklesIcon data-icon="inline-start" aria-hidden />
-              AI 동행
-            </Link>
-          </Button>
-        </div>
-      </section>
+        <NextSteps status={stepStatus} title={stepTitle} steps={steps} />
         <h2 id="trip-info" className="text-base font-semibold">
           여행 정보
         </h2>

@@ -30,12 +30,15 @@ export function TodayView({
   dayId,
   initialNowMinute,
   weather,
+  showAsk = true,
 }: {
   tripId: string;
   itinerary: Itinerary;
   dayId: string;
   initialNowMinute: number;
   weather: TodayWeather | null;
+  /** Off beside the chat itself, where the button would only point back to the same page. */
+  showAsk?: boolean;
 }) {
   const { data } = useItinerary(tripId, itinerary);
   const { updateItem } = useItineraryMutations(tripId);
@@ -185,14 +188,16 @@ export function TodayView({
         })}
       </ol>
 
+      {showAsk ? (
       <div className="border-t px-5 py-4">
-        <Button asChild size="lg" className="w-full">
-          <Link href={`/trips/${tripId}/companion`}>
-            <SparklesIcon data-icon="inline-start" aria-hidden />
-            지금 AI에게 물어보기
-          </Link>
-        </Button>
-      </div>
+          <Button asChild className="w-full">
+            <Link href={`/trips/${tripId}/companion`}>
+              <SparklesIcon data-icon="inline-start" aria-hidden />
+              지금 AI에게 물어보기
+            </Link>
+          </Button>
+        </div>
+      ) : null}
     </section>
   );
 }

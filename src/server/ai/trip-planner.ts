@@ -114,12 +114,24 @@ export async function generatePlan(tripId: string, userId: string, raw: unknown)
   }
 
   const byNumber = new Map(generated.map((d) => [d.dayNumber, d]));
+  // Tell the truth about days that came back empty instead of "N일 일정을 만들었어요", and
+  // never wipe a day's plan for an empty result.
+  const empty = targets.filter((t) => (byNumber.get(t.dayNumber)?.items.length ?? 0) === 0);
+  if (empty.length === targets.length) {
+    throw new AppError("AI_FAILED", "일정을 만들지 못했어요. 요청을 조금 바꿔 다시 시도해 주세요.");
+  }
+  if (empty.length > 0) {
+    const labels = empty.map((d) => `${d.dayNumber}일차`).join(", ");
+    warnings.push(`${labels}에는 맞는 장소를 찾지 못해 그대로 뒀어요. 직접 추가하거나 다시 시도해 주세요.`);
+    summary = `${targets.length - empty.length}일 일정을 만들었어요.`;
+  }
+
   const days = await db.$transaction(
     async (tx) => {
       const changed = [];
       for (const day of targets) {
         const plan = byNumber.get(day.dayNumber);
-        if (!plan) continue;
+        if (!plan || plan.items.length === 0) continue;
         await tx.itineraryItem.deleteMany({ where: { dayId: day.id } });
         await tx.day.update({ where: { id: day.id }, data: { title: plan.title || null } });
         for (const [position, item] of plan.items.entries()) {

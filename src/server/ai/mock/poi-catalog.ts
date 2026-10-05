@@ -1,5 +1,6 @@
 import "server-only";
 import type { PlaceCategory } from "@/generated/prisma/enums";
+import { referenceRate } from "@/lib/fx";
 
 /**
  * Curated points of interest for the deterministic mock planner and companion.
@@ -275,24 +276,10 @@ export function findCity(destination: string): City | undefined {
   return CITIES.find((c) => c.match.test(destination));
 }
 
-/** Rough FX to convert local estimates into the trip's currency (estimates only). */
-const USD_PER: Record<string, number> = {
-  USD: 1,
-  KRW: 0.00073,
-  JPY: 0.0067,
-  EUR: 1.08,
-  GBP: 1.27,
-  CNY: 0.14,
-  TWD: 0.031,
-  THB: 0.028,
-  VND: 0.00004,
-  AUD: 0.66,
-};
-
+/** Rough conversion for mock price estimates, rounded to tidy numbers (100 won / 100 yen). */
 export function convertCurrency(amount: number, from: string, to: string): number {
   if (from === to) return amount;
-  const usd = amount * (USD_PER[from] ?? 1);
-  const converted = usd / (USD_PER[to] ?? 1);
+  const converted = amount * referenceRate(from, to);
   const rounding = ["KRW", "JPY", "VND"].includes(to) ? 100 : 1;
   return Math.round(converted / rounding) * rounding;
 }

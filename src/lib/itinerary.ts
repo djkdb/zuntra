@@ -20,6 +20,8 @@ export interface ItineraryItemView {
   latitude?: number | null;
   longitude?: number | null;
   isIndoor?: boolean | null;
+  /** For edit-conflict detection (ISO). */
+  updatedAt?: string;
 }
 
 export interface DayView {

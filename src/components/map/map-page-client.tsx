@@ -5,6 +5,7 @@ import { ClockIcon, LocateIcon, MapPinIcon, MapPinOffIcon, NavigationIcon, Searc
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { DaySwitcher } from "@/components/plan/day-switcher";
 import { itineraryKey, useItinerary } from "@/components/plan/use-itinerary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -90,28 +91,17 @@ export function MapPageClient({ tripId, initialData }: { tripId: string; initial
 
   return (
     <div className="space-y-4">
-      <nav aria-label="날짜 필터" className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
-        <ul className="flex min-w-max gap-2">
-          {[{ id: "all" as const, label: "전체" }, ...data.days.map((d) => ({ id: d.id, label: `DAY ${d.dayNumber}` }))].map((f) => (
-            <li key={f.id}>
-              <button
-                type="button"
-                aria-pressed={dayFilter === f.id}
-                onClick={() => {
-                  setDayFilter(f.id);
-                  setSelectedId(null);
-                }}
-                className={cn(
-                  "h-10 rounded-full border px-4 text-sm font-medium",
-                  dayFilter === f.id ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted",
-                )}
-              >
-                {f.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <DaySwitcher
+        label="날짜 필터"
+        days={data.days}
+        selected={dayFilter}
+        today={today}
+        allLabel="전체"
+        onSelect={(id) => {
+          setDayFilter(id);
+          setSelectedId(null);
+        }}
+      />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="relative h-[52dvh] min-h-80 overflow-hidden rounded-xl border lg:h-[calc(100dvh-16rem)]">

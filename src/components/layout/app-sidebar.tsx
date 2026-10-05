@@ -7,7 +7,7 @@ import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { formatDDay } from "@/lib/dates";
 import { cn } from "@/lib/utils";
-import { MAIN_NAV, TRIP_SECTIONS } from "./nav-config";
+import { MAIN_NAV, TRIP_SECTIONS, tripIdFromPath } from "./nav-config";
 import { UserMenu } from "./user-menu";
 
 export interface SidebarTrip {
@@ -57,7 +57,9 @@ export function AppSidebar({
         })}
       </nav>
 
-      {focusTrip ? (
+      {/* On a trip's own pages the tab bar already lists these sections; showing them twice only
+          doubled the tab stops. Elsewhere this is the shortcut into the current trip. */}
+      {focusTrip && !tripIdFromPath(pathname) ? (
         <section aria-labelledby="sidebar-trip" className="mt-6">
           <div className="px-2.5">
             <p className="text-xs text-muted-foreground">

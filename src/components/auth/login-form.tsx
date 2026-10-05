@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 import { signInAction } from "@/app/(auth)/actions";
-import { Field, FormMessage } from "@/components/forms/field";
+import { Field, FormMessage, useFocusFirstError } from "@/components/forms/field";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Input } from "@/components/ui/input";
 import { initialFormState } from "@/lib/action-state";
 
 export function LoginForm({ callbackUrl, notice }: { callbackUrl?: string; notice?: string }) {
   const [state, action] = useActionState(signInAction, initialFormState);
+  const formRef = useRef<HTMLFormElement>(null);
+  useFocusFirstError(formRef, state);
 
   return (
-    <form action={action} className="space-y-5" noValidate>
+    <form ref={formRef} action={action} className="space-y-5" noValidate>
       {notice && !state.message ? <FormMessage tone="success" message={notice} /> : null}
       <FormMessage message={state.message} />
       <input type="hidden" name="callbackUrl" value={callbackUrl ?? ""} />

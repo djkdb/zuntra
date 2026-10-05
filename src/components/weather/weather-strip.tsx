@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { WeatherIcon } from "./weather-icon";
 
 /** Per-day forecast for the trip: condition, high/low and chance of rain. */
-export function WeatherStrip({ days, stale }: { days: DayWeatherView[]; stale?: boolean }) {
+export function WeatherStrip({ days, stale, today }: { days: DayWeatherView[]; stale?: boolean; today?: string }) {
   const anyAvailable = days.some((d) => d.available);
   return (
     <section aria-labelledby="weather-title" className="space-y-3">
@@ -17,12 +17,12 @@ export function WeatherStrip({ days, stale }: { days: DayWeatherView[]; stale?: 
           {stale ? "최신 예보를 가져오지 못해 마지막 예보를 보여줘요" : anyAvailable ? "현지 기준 예보" : "출발 16일 전부터 예보를 보여드려요"}
         </p>
       </div>
-      <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0">
+      <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] sm:px-0">
         {days.map((d) => (
           <li
             key={d.dayId}
             className={cn(
-              "flex w-[5.5rem] shrink-0 flex-col items-center gap-1 rounded-lg border bg-card px-2 py-3 text-center",
+              "flex w-[5.5rem] shrink-0 flex-col items-center sm:w-auto gap-1 rounded-lg border bg-card px-2 py-3 text-center",
               d.available && isRainy(d) && "border-primary/40 bg-secondary/60",
             )}
           >
@@ -42,7 +42,7 @@ export function WeatherStrip({ days, stale }: { days: DayWeatherView[]; stale?: 
                 </span>
               </>
             ) : (
-              <span className="my-auto py-3 text-xs text-muted-foreground">예보 전</span>
+              <span className="my-auto py-3 text-xs text-muted-foreground">{today && d.date < today ? "지난 날" : "예보 전"}</span>
             )}
           </li>
         ))}

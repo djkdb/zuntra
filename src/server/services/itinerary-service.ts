@@ -13,7 +13,7 @@ import {
 } from "@/lib/validation/itinerary";
 import { track } from "@/server/analytics/track";
 import { db } from "@/server/db";
-import { notFound } from "@/server/errors";
+import { AppError, notFound } from "@/server/errors";
 import { parseOrThrow } from "@/server/validate";
 import { assertTripAccess } from "./trip-service";
 
@@ -45,6 +45,7 @@ export function toItemView(row: ItemRow): ItineraryItemView {
     latitude: row.place?.latitude ?? null,
     longitude: row.place?.longitude ?? null,
     isIndoor: row.place?.isIndoor ?? null,
+    updatedAt: row.updatedAt.toISOString(),
   };
 }
 
@@ -237,6 +238,10 @@ export async function updateItem(tripId: string, userId: string, itemId: string,
 
   const day = await db.$transaction(async (tx) => {
     const item = await findTripItem(tx, tripId, itemId);
+    // The editor sends the version it opened; a different one means someone saved in between.
+    if (patch.expectedUpdatedAt && patch.expectedUpdatedAt !== item.updatedAt.toISOString()) {
+      throw new AppError("CONFLICT", "다른 곳에서 이 일정을 먼저 바꿨어요. 최신 내용을 불러왔으니 확인하고 다시 저장해 주세요.");
+    }
     const placeId =
       patch.address !== undefined || patch.latitude !== undefined
         ? await upsertPlace(tx, tripId, item.placeId, {

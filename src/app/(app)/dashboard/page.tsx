@@ -34,7 +34,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         description={ongoing ? "오늘도 좋은 여행 되세요." : focus ? "다음 여행을 함께 준비해요." : "어디로 떠나볼까요?"}
         actions={
           trips.length > 0 ? (
-            <Button asChild variant="outline" className="hidden sm:inline-flex">
+            <Button asChild variant="outline" className="hidden sm:inline-flex lg:hidden">
               <Link href="/trips/new">
                 <PlusIcon data-icon="inline-start" aria-hidden />새 여행
               </Link>

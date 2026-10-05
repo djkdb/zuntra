@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { type RefObject, useEffect, useId } from "react";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
@@ -52,4 +52,14 @@ export function FormMessage({ message, tone = "error" }: { message?: string; ton
       {message}
     </div>
   );
+}
+
+/** After a failed submit, moves focus (and the viewport) to the first invalid field. */
+export function useFocusFirstError(formRef: RefObject<HTMLFormElement | null>, state: { fields?: Record<string, string> }) {
+  useEffect(() => {
+    if (!state.fields || Object.keys(state.fields).length === 0) return;
+    const field = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    field?.focus({ preventScroll: true });
+    field?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [formRef, state]);
 }

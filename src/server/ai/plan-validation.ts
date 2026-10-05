@@ -86,7 +86,7 @@ export function validatePlan(
     items.sort((a, b) => a.startMinute - b.startMinute);
 
     if (items.length > MAX_ITEMS[options.pace]) {
-      warnings.push(`Day ${day.dayNumber}: 여행 속도에 맞춰 일정을 ${MAX_ITEMS[options.pace]}개로 줄였어요.`);
+      warnings.push(`${day.dayNumber}일차: 여행 속도에 맞춰 일정을 ${MAX_ITEMS[options.pace]}개로 줄였어요.`);
       items = items.slice(0, MAX_ITEMS[options.pace]);
     }
 
@@ -112,7 +112,7 @@ export function validatePlan(
     // Remove impossible overlaps, then drop stops that end too late.
     const reflowed = reflowDay(items.map((it, i) => ({ ...it, id: String(i) })));
     if (reflowed.changes.length > 0) {
-      warnings.push(`Day ${day.dayNumber}: 이동시간을 고려해 ${reflowed.changes.length}개 일정의 시간을 조정했어요.`);
+      warnings.push(`${day.dayNumber}일차: 이동시간을 고려해 ${reflowed.changes.length}개 일정의 시간을 조정했어요.`);
     }
     const adjusted: ValidPlanItem[] = reflowed.items.map((it) => {
       const { id, ...rest } = it;
@@ -121,14 +121,14 @@ export function validatePlan(
     });
     const kept = adjusted.filter((it) => it.startMinute + it.durationMinutes <= LATEST_END);
     if (kept.length < adjusted.length) {
-      warnings.push(`Day ${day.dayNumber}: 늦은 시간까지 이어지는 일정 ${adjusted.length - kept.length}개를 제외했어요.`);
+      warnings.push(`${day.dayNumber}일차: 늦은 시간까지 이어지는 일정 ${adjusted.length - kept.length}개를 제외했어요.`);
     }
 
     days.push({ dayNumber: day.dayNumber, title: day.title.trim().slice(0, 40), items: kept });
   }
 
   for (const n of options.dayNumbers) {
-    if (!seenDays.has(n)) warnings.push(`Day ${n} 일정이 생성되지 않았어요.`);
+    if (!seenDays.has(n)) warnings.push(`${n}일차 일정이 만들어지지 않았어요.`);
   }
   return { days: days.sort((a, b) => a.dayNumber - b.dayNumber), warnings };
 }

@@ -12,6 +12,7 @@ import { MOOD_OPTIONS } from "@/lib/journal";
 import { getReport } from "@/server/ai/travel-reporter";
 import { requireOnboardedUser } from "@/server/auth/session";
 import { tripPageData } from "@/server/services/trip-queries";
+import { MoodIcon } from "@/components/journal/mood-icon";
 
 export const metadata: Metadata = { title: "여행 리포트" };
 
@@ -157,7 +158,7 @@ export default async function ReportPage(props: PageProps<"/trips/[tripId]/repor
               const opt = MOOD_OPTIONS.find((o) => o.value === m.mood);
               return (
                 <li key={m.mood} className="rounded-full border bg-card px-4 py-2 text-sm">
-                  <span aria-hidden>{opt?.emoji}</span> {opt?.label} {m.count}번
+                  <MoodIcon mood={m.mood} className="inline size-3.5 align-[-2px]" /> {opt?.label} {m.count}번
                 </li>
               );
             })}

@@ -23,15 +23,6 @@ import { useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/states/empty-state";
 import { ErrorState } from "@/components/states/error-state";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { formatShortDate, todayInTimeZone } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
@@ -41,6 +32,8 @@ import { cn } from "@/lib/utils";
 import type { Itinerary } from "@/server/services/itinerary-service";
 import { type ItemDraft, ItemDialog } from "./item-dialog";
 import { DayMiniMap } from "./day-mini-map";
+import { DaySwitcher } from "./day-switcher";
+import { DayTitleEditor } from "./day-title-editor";
 import { ItemRow } from "./item-row";
 import { useItinerary, useItineraryMutations } from "./use-itinerary";
 
@@ -71,7 +64,6 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
   // Stable id keeps dnd-kit's aria attributes identical between server and client renders.
   const dndId = useId();
   const [dialog, setDialog] = useState<DialogState>(null);
-  const [pendingDelete, setPendingDelete] = useState<ItineraryItemView | null>(null);
   const [dismissedIssues, setDismissedIssues] = useState<string | null>(null);
   const [mapSelectedId, setMapSelectedId] = useState<string | null>(null);
 
@@ -100,6 +92,9 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
     .filter((d) => d.id !== day.id)
     .map((d) => ({ id: d.id, label: `DAY ${d.dayNumber} · ${formatShortDate(d.date)}` }));
 
+  const titleOf = (id: string | number) => day.items.find((i) => i.id === id)?.title ?? "일정";
+  const positionOf = (id: string | number) => day.items.findIndex((i) => i.id === id) + 1;
+
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -109,7 +104,12 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
 
   const submitDraft = async (draft: ItemDraft) => {
     if (dialog?.mode === "edit") {
-      await m.updateItem.mutateAsync({ itemId: dialog.item.id, patch: { ...draft } });
+      // Send only what changed, plus the version the dialog was opened on, so a concurrent edit
+      // to another field is kept and a conflicting one is reported instead of overwritten.
+      const before: Record<string, unknown> = { ...dialog.item };
+      const patch = Object.fromEntries(Object.entries(draft).filter(([k, v]) => (before[k] ?? null) !== v));
+      if (Object.keys(patch).length === 0) return;
+      await m.updateItem.mutateAsync({ itemId: dialog.item.id, patch: { ...patch, expectedUpdatedAt: dialog.item.updatedAt } });
       toast.success("일정을 수정했어요.");
     } else {
       await m.addItem.mutateAsync({ dayId: day.id, ...draft });
@@ -117,48 +117,57 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
     }
   };
 
+  // Delete at once and offer an undo instead of asking first: a slip costs one tap to fix.
+  const deleteWithUndo = (item: ItineraryItemView) =>
+    m.deleteItem.mutate(item.id, {
+      onSuccess: () =>
+        toast.success(`‘${item.title}’ 일정을 지웠어요.`, {
+          duration: 6000,
+          action: {
+            label: "되돌리기",
+            onClick: () =>
+              m.addItem.mutate(
+                {
+                  dayId: day.id,
+                  title: item.title,
+                  category: item.category,
+                  startMinute: item.startMinute,
+                  durationMinutes: item.durationMinutes,
+                  travelMinutesFromPrev: item.travelMinutesFromPrev,
+                  transportMode: item.transportMode,
+                  estimatedCost: item.estimatedCost,
+                  note: item.note,
+                  address: item.address ?? null,
+                  latitude: item.latitude ?? null,
+                  longitude: item.longitude ?? null,
+                },
+                { onSuccess: () => toast.success("일정을 되살렸어요.") },
+              ),
+          },
+        }),
+    });
+
   const showAlert = editable && issues.length > 0 && dismissedIssues !== issueSignature;
 
   return (
     <div className="space-y-6">
-      {/* Day selector */}
-      <nav aria-label="날짜 선택" className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
-        <ul className="flex min-w-max gap-2">
-          {data.days.map((d) => {
-            const active = d.id === day.id;
-            return (
-              <li key={d.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDayId(d.id)}
-                  aria-current={active ? "date" : undefined}
-                  className={cn(
-                    "flex flex-col items-start rounded-lg border px-3 py-1.5 text-left transition-colors",
-                    active ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-muted",
-                  )}
-                >
-                  <span className="text-xs font-semibold">
-                    DAY {d.dayNumber}
-                    {d.date === today ? " · 오늘" : ""}
-                  </span>
-                  <span className={cn("text-sm", active ? "text-background/80" : "text-muted-foreground")}>
-                    {formatShortDate(d.date)}
-                    <span className="ml-1.5 text-xs">{d.items.length > 0 ? `${d.items.length}곳` : "–"}</span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <DaySwitcher days={data.days} selected={day.id} onSelect={setSelectedDayId} today={today} />
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,26rem)]">
       <section aria-labelledby="day-title" className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 id="day-title" className="text-lg font-semibold">
-              {dayLabel}
-            </h2>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 id="day-title" className="text-lg font-semibold">
+                {dayLabel}
+              </h2>
+              <DayTitleEditor
+                key={day.id}
+                title={day.title}
+                editable={editable}
+                onSave={(title) => m.updateDay.mutate({ dayId: day.id, title }, { onSuccess: () => toast.success("이 날의 제목을 바꿨어요.") })}
+              />
+            </div>
             <p className="text-sm text-muted-foreground">
               {day.items.length > 0
                 ? `${day.items.length}개 일정${lastEnd !== null ? ` · ${formatMinute(Math.min(lastEnd, 1439))} 종료` : ""}${
@@ -183,7 +192,7 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
             <p className="flex items-start gap-2 font-medium">
               <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-[oklch(0.55_0.13_65)]" aria-hidden />
               {preview.maxDelay > 0
-                ? `현재 일정이 ${formatDelay(preview.maxDelay)} 밀렸습니다.`
+                ? `현재 일정이 ${formatDelay(preview.maxDelay)} 밀렸어요.`
                 : "자정을 넘기는 일정이 있어요."}
             </p>
             <p className="mt-1 pl-6 text-sm text-muted-foreground">
@@ -232,7 +241,23 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
             }
           />
         ) : (
-          <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <DndContext
+            id={dndId}
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+            accessibility={{
+              screenReaderInstructions: {
+                draggable: "스페이스바를 눌러 일정을 들고, 위아래 화살표로 옮긴 뒤 스페이스바로 내려놓아요. Esc를 누르면 취소돼요.",
+              },
+              announcements: {
+                onDragStart: ({ active }) => `‘${titleOf(active.id)}’ 일정을 들었어요.`,
+                onDragOver: ({ active, over }) => (over ? `${positionOf(over.id)}번째 자리 위에 있어요.` : `‘${titleOf(active.id)}’ 일정을 옮기는 중이에요.`),
+                onDragEnd: ({ active, over }) => (over ? `‘${titleOf(active.id)}’ 일정을 ${positionOf(over.id)}번째로 옮겼어요.` : "옮기지 않았어요."),
+                onDragCancel: ({ active }) => `‘${titleOf(active.id)}’ 일정 옮기기를 취소했어요.`,
+              },
+            }}
+          >
             <SortableContext items={day.items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
               <ol className="space-y-0" aria-label={`${dayLabel} 일정`}>
                 {day.items.map((item, index) => (
@@ -252,7 +277,7 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
                       onToggleDone={() =>
                         m.updateItem.mutate({ itemId: item.id, patch: { status: item.status === "DONE" ? "PLANNED" : "DONE" } })
                       }
-                      onDelete={() => setPendingDelete(item)}
+                      onDelete={() => deleteWithUndo(item)}
                       onMoveToDay={(toDayId) =>
                         m.moveItem.mutate(
                           { itemId: item.id, toDayId, toIndex: 999 },
@@ -307,26 +332,6 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
         />
       ) : null}
 
-      <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>‘{pendingDelete?.title}’ 일정을 삭제할까요?</AlertDialogTitle>
-            <AlertDialogDescription>삭제한 일정은 되돌릴 수 없어요.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>취소</AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (pendingDelete) m.deleteItem.mutate(pendingDelete.id, { onSuccess: () => toast.success("일정을 삭제했어요.") });
-                setPendingDelete(null);
-              }}
-            >
-              삭제하기
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

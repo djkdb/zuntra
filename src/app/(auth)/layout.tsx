@@ -19,7 +19,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
             알려드려요.
           </p>
         </div>
-        <p className="relative text-sm text-primary-foreground/60">PLAN · PREPARE · TRAVEL · ADAPT · REMEMBER</p>
+        <p className="relative text-sm text-primary-foreground/60">계획부터 여행 중 조정, 다녀온 뒤 기록까지 한 곳에서.</p>
       </aside>
       <main id="main" className="flex flex-col px-5 py-8 sm:px-10">
         <Link href="/" className="mb-10 lg:hidden">

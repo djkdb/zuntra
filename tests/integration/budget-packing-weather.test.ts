@@ -35,6 +35,9 @@ describe("budget", () => {
     const [a, b] = await Promise.all([createUser(), createUser()]);
     const { id } = await createTestTrip(a.id);
     const { id: other } = await createTestTrip(b.id);
+    await expectAppError(addExpense(id, a.id, { title: "커피", category: "FOOD", amount: 5000, date: "1999-01-01" }), "VALIDATION");
+    await expectAppError(addExpense(id, a.id, { title: "커피", category: "FOOD", amount: 0.001, date: "2026-11-03" }), "VALIDATION");
+    await expectAppError(addExpense(id, a.id, { title: "커피", category: "FOOD", amount: true, date: "2026-11-03" }), "VALIDATION");
     await expectAppError(addExpense(id, a.id, { title: "", category: "FOOD", amount: -1, date: "x" }), "VALIDATION");
     const data = await addExpense(id, a.id, { title: "커피", category: "FOOD", amount: 5000, date: "2026-11-03" });
     const expenseId = data.expenses[0]!.id;
@@ -120,11 +123,28 @@ describe("weather", () => {
     const weather = await getTripWeather(id, user.id);
     expect(weather.days).toHaveLength(5);
     expect(weather.days.every((d) => d.available)).toBe(true);
-    expect(weather.suggestions.map((s) => s.message)).toContain("Day 3 오후에 비가 예상됩니다.");
+    expect(weather.suggestions.map((s) => s.message)).toContain("3일차 오후에 비 소식이 있어요.");
     expect(weather.suggestions[0]!.outdoorTitles).toEqual(["오다이바 해변공원"]);
 
     const fetchedAt = (await db.weatherSnapshot.findFirstOrThrow({ where: { tripId: id } })).fetchedAt;
     await getTripWeather(id, user.id);
     expect((await db.weatherSnapshot.findFirstOrThrow({ where: { tripId: id } })).fetchedAt).toEqual(fetchedAt);
+  });
+});
+
+describe("expenses in another currency", () => {
+  it("converts to the trip currency and keeps what was paid", async () => {
+    const user = await createUser();
+    const { id } = await createTestTrip(user.id);
+    const data = await addExpense(id, user.id, { title: "타코야키", category: "FOOD", amount: 800, currency: "JPY", fxRate: 9.1, date: "2026-11-03" });
+    const e = data.expenses[0]!;
+    expect(e.amount).toBe(7280);
+    expect(e.currency).toBe("KRW");
+    expect(e.originalAmount).toBe(800);
+    expect(e.originalCurrency).toBe("JPY");
+    expect(data.summary.spent).toBe(7280);
+    // Without a rate the reference rate is used; the trip-currency path is unchanged.
+    const again = await addExpense(id, user.id, { title: "라멘", category: "FOOD", amount: "1,200", currency: "JPY", date: "2026-11-03" });
+    expect(again.expenses.find((x) => x.title === "라멘")!.amount).toBeGreaterThan(0);
   });
 });

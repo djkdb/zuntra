@@ -4,7 +4,7 @@ import { AuthError } from "next-auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { type FormState, safeRedirectPath } from "@/lib/action-state";
-import { fieldErrors } from "@/lib/validation/common";
+import { fieldErrors, invalidFormMessage } from "@/lib/validation/common";
 import { signInSchema, signUpSchema } from "@/lib/validation/auth";
 import { signIn, signOut } from "@/server/auth";
 import { AppError } from "@/server/errors";
@@ -18,7 +18,7 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
     password: formData.get("password"),
   });
   const values = { name: String(formData.get("name") ?? ""), email: String(formData.get("email") ?? "") };
-  if (!parsed.success) return { message: "입력값을 확인해 주세요.", fields: fieldErrors(parsed.error), values };
+  if (!parsed.success) return { message: invalidFormMessage(fieldErrors(parsed.error)), fields: fieldErrors(parsed.error), values };
 
   const ip = clientIpFrom(await headers());
   const limit = ip ? await signupLimiter.consume(`ip:${ip}`) : { ok: true };
@@ -49,7 +49,7 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
 export async function signInAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const parsed = signInSchema.safeParse({ email: formData.get("email"), password: formData.get("password") });
   const values = { email: String(formData.get("email") ?? "") };
-  if (!parsed.success) return { message: "입력값을 확인해 주세요.", fields: fieldErrors(parsed.error), values };
+  if (!parsed.success) return { message: invalidFormMessage(fieldErrors(parsed.error)), fields: fieldErrors(parsed.error), values };
 
   try {
     await signIn("credentials", {

@@ -2,14 +2,15 @@ import { z } from "zod";
 import { TravelPace, TravelStyle } from "@/generated/prisma/enums";
 import { CURRENCY_CODES, MAX_TRAVELERS, MAX_TRIP_DAYS } from "@/lib/constants";
 import { diffDaysIso, isValidTimeZone } from "@/lib/dates";
-import { isoDate, optionalText, tagList } from "./common";
+import { parseAmountText } from "@/lib/format";
+import { isoDate, numeric, optionalText, tagList } from "./common";
 
 const budgetAmount = z
-  .union([z.number(), z.string()])
+  .union([z.number(), z.string(), z.null()], "예산은 숫자로 입력해 주세요.")
   .optional()
   .transform((v, ctx) => {
-    if (v === undefined || v === "") return undefined;
-    const n = typeof v === "number" ? v : Number(String(v).replace(/[,\s]/g, ""));
+    if (v === undefined || v === null || v === "") return undefined;
+    const n = typeof v === "number" ? v : parseAmountText(v);
     if (!Number.isFinite(n) || n < 0) {
       ctx.addIssue({ code: "custom", message: "예산은 0 이상의 숫자로 입력해 주세요." });
       return z.NEVER;
@@ -27,11 +28,11 @@ const tripFields = {
   timezone: z.string().trim().refine(isValidTimeZone, "올바른 시간대를 골라 주세요."),
   startDate: isoDate,
   endDate: isoDate,
-  travelerCount: z.coerce
+  travelerCount: numeric("인원을 입력해 주세요.").pipe(z
     .number("인원을 입력해 주세요.")
     .int("인원은 정수로 입력해 주세요.")
     .min(1, "인원은 1명 이상이어야 해요.")
-    .max(MAX_TRAVELERS, `인원은 ${MAX_TRAVELERS}명 이하로 입력해 주세요.`),
+    .max(MAX_TRAVELERS, `인원은 ${MAX_TRAVELERS}명 이하로 입력해 주세요.`)),
   styles: z
     .array(z.enum(TravelStyle))
     .max(8)

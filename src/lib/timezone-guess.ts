@@ -25,3 +25,12 @@ export function guessTimeZone(destination: string): string | null {
   for (const [pattern, zone] of RULES) if (pattern.test(text)) return zone;
   return null;
 }
+
+/**
+ * Whether a trip stays in Korea. The destination name wins over the stored time zone, so an
+ * 오사카 trip saved with the Seoul zone (both UTC+9) still counts as abroad (passport etc.).
+ */
+export function isDomesticTrip(destination: string, timezone: string): boolean {
+  const guess = guessTimeZone(destination);
+  return guess ? guess === "Asia/Seoul" : timezone === "Asia/Seoul";
+}

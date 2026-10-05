@@ -2,6 +2,7 @@ import "server-only";
 import type { BudgetLevel, ExpenseCategory } from "@/generated/prisma/enums";
 import { EXPECTED_SHARE, EXPENSE_CATEGORY_LABELS, type Insight } from "@/lib/budget";
 import { formatMoney } from "@/lib/format";
+import { withJosa } from "@/lib/korean";
 
 /**
  * Spending analysis. Deterministic on purpose: it runs on every budget view, so it must be
@@ -24,12 +25,12 @@ export function analyzeSpending(input: {
     return [{ tone: "info", text: "아직 기록된 지출이 없어요. 지출을 기록하면 자동으로 분석해 드려요." }];
   }
 
-  insights.push({ tone: "info", text: `${input.isFinal ? "이번 여행에서 총" : "현재까지"} ${money(spent)}을(를) 사용했어요.` });
+  insights.push({ tone: "info", text: `${input.isFinal ? "이번 여행에서 총" : "현재까지"} ${withJosa(money(spent), "을/를")} 사용했어요.`, restatesTotals: true });
 
   if (total && total > 0) {
     const pct = Math.round((spent / total) * 100);
     if (pct > 100) insights.push({ tone: "warning", text: `예산을 ${money(spent - total)} 초과했어요 (예산의 ${pct}%).` });
-    else insights.push({ tone: pct >= 85 ? "warning" : "info", text: `예산의 ${pct}%를 사용했어요.` });
+    else insights.push({ tone: pct >= 85 ? "warning" : "info", text: `예산의 ${pct}%를 사용했어요.`, restatesTotals: pct < 85 });
 
     if (!input.isFinal && input.elapsedRatio > 0.05 && input.elapsedRatio < 1) {
       // Lodging is usually paid up front, so judge the pace on day-to-day spending only.
@@ -58,6 +59,12 @@ export function analyzeSpending(input: {
         insights.push({ tone: "warning", text: `${EXPENSE_CATEGORY_LABELS[cat]} 지출이 예상보다 높아요.` });
       }
     }
+  }
+
+  // "Comfortably within budget" next to "category X is high" reads as a contradiction.
+  if (insights.some((i) => i.tone === "warning")) {
+    const calm = insights.findIndex((i) => i.tone === "good");
+    if (calm >= 0) insights.splice(calm, 1);
   }
 
   const top = (Object.entries(input.byCategory) as [ExpenseCategory, number][]).sort((a, b) => b[1] - a[1])[0];

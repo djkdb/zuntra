@@ -12,7 +12,7 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({
-  title = "정보를 가져오지 못했습니다.",
+  title = "정보를 가져오지 못했어요.",
   description = "네트워크 상태를 확인하고 다시 시도해 주세요.",
   onRetry,
   className,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookHeartIcon, FlagIcon, Loader2Icon, MapPinIcon, StarIcon, Trash2Icon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -23,12 +23,15 @@ import { formatShortDate, todayInTimeZone } from "@/lib/dates";
 import { type JournalEntryView, MOOD_OPTIONS } from "@/lib/journal";
 import type { JournalData } from "@/server/services/journal-service";
 import { JournalComposer } from "./journal-composer";
+import { useSeededQuery } from "@/components/use-seeded-query";
+import { cn } from "@/lib/utils";
+import { MoodIcon } from "@/components/journal/mood-icon";
 
 export function JournalClient({ tripId, initialData }: { tripId: string; initialData: JournalData }) {
   const qc = useQueryClient();
   const router = useRouter();
   const key = ["journal", tripId] as const;
-  const { data = initialData } = useQuery({
+  const { data = initialData } = useSeededQuery({
     queryKey: key,
     queryFn: ({ signal }) => apiFetch<JournalData>(`/api/trips/${tripId}/journal`, { signal }),
     initialData,
@@ -61,6 +64,8 @@ export function JournalClient({ tripId, initialData }: { tripId: string; initial
   }, {});
   const completed = data.status === "COMPLETED";
   const tripStarted = today >= data.startDate;
+  // Ending the trip is the call to action only once its last day has come; earlier it stays quiet.
+  const finishing = completed || today >= data.endDate;
 
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -86,7 +91,7 @@ export function JournalClient({ tripId, initialData }: { tripId: string; initial
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                       {e.mood ? (
                         <span>
-                          <span aria-hidden>{MOOD_OPTIONS.find((m) => m.value === e.mood)?.emoji}</span>{" "}
+                          <MoodIcon mood={e.mood} className="inline size-3.5 align-[-2px]" />{" "}
                           {MOOD_OPTIONS.find((m) => m.value === e.mood)?.label}
                         </span>
                       ) : null}
@@ -137,7 +142,7 @@ export function JournalClient({ tripId, initialData }: { tripId: string; initial
       </div>
 
       <aside className="space-y-4">
-        <section className="rounded-xl bg-primary p-5 text-primary-foreground">
+        <section className={cn("rounded-xl p-5", finishing ? "bg-primary text-primary-foreground" : "border bg-card")}>
           <FlagIcon className="size-6" aria-hidden />
           {completed ? (
             <>
@@ -150,16 +155,16 @@ export function JournalClient({ tripId, initialData }: { tripId: string; initial
           ) : (
             <>
               <h2 className="mt-3 text-lg font-semibold">여행을 마치셨나요?</h2>
-              <p className="mt-1 text-sm text-primary-foreground/80">
+              <p className={cn("mt-1 text-sm", finishing ? "text-primary-foreground/80" : "text-muted-foreground")}>
                 여행을 종료하면 장소·지출·기록을 정리한 AI 여행 리포트를 만들어 드려요.
               </p>
               {data.canEdit ? (
-                <Button variant="secondary" className="mt-4 w-full" onClick={() => setConfirmEnd(true)} disabled={!tripStarted || complete.isPending}>
+                <Button variant={finishing ? "secondary" : "outline"} className="mt-4 w-full" onClick={() => setConfirmEnd(true)} disabled={!tripStarted || complete.isPending}>
                   {complete.isPending ? <Loader2Icon className="animate-spin" data-icon="inline-start" aria-hidden /> : null}
                   {complete.isPending ? "리포트를 만들고 있어요..." : "여행 종료하고 리포트 만들기"}
                 </Button>
               ) : null}
-              {!tripStarted ? <p className="mt-2 text-xs text-primary-foreground/70">여행이 시작된 뒤에 종료할 수 있어요.</p> : null}
+              {!tripStarted ? <p className="mt-2 text-xs text-muted-foreground">여행이 시작된 뒤에 종료할 수 있어요.</p> : null}
             </>
           )}
         </section>

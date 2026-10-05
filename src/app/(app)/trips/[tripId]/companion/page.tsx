@@ -27,6 +27,7 @@ export default async function CompanionPage(props: PageProps<"/trips/[tripId]/co
           tripId={tripId}
           currency={trip.currency}
           initial={conversation}
+          traveling={Boolean(today.todayDayId)}
           autoSend={q ? { message: q, focusDayId: day } : undefined}
         />
       </div>
@@ -39,6 +40,7 @@ export default async function CompanionPage(props: PageProps<"/trips/[tripId]/co
               dayId={today.todayDayId}
               initialNowMinute={today.nowMinute}
               weather={today.todayWeather}
+              showAsk={false}
             />
           </div>
         </aside>

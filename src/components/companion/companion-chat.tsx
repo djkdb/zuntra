@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LocateFixedIcon, LocateIcon, RotateCwIcon, SendIcon, SparklesIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -12,10 +12,13 @@ import { ApiError, apiFetch, errorMessage } from "@/lib/api-client";
 import type { DayView } from "@/lib/itinerary";
 import { cn } from "@/lib/utils";
 import { ActionCard } from "./action-card";
+import { useSeededQuery } from "@/components/use-seeded-query";
 
 type Conversation = { messages: ChatMessageView[]; canEdit: boolean };
 
-const STARTERS = ["지금 너무 피곤해", "여기 너무 좋다. 1시간 더 있을래", "밥 먹고 어디 가지?", "비 오면 어떡하지?", "예산 얼마나 썼어?"];
+const STARTERS_TRAVELING = ["지금 너무 피곤해", "여기 너무 좋다. 1시간 더 있을래", "밥 먹고 어디 가지?", "비 오면 어떡하지?", "예산 얼마나 썼어?"];
+// Before the trip, people ask how things work there, not what to do next.
+const STARTERS_BEFORE = ["공항에서 시내 어떻게 가?", "환전은 얼마나 해야 해?", "교통패스 필요해?", "비 오면 어떡하지?", "말이 안 통하면 어떡해?"];
 
 function useGeolocation(enabled: boolean) {
   const last = useRef<{ lat: number; lng: number; at: number } | null>(null);
@@ -40,16 +43,19 @@ export function CompanionChat({
   currency,
   initial,
   autoSend,
+  traveling = true,
 }: {
   tripId: string;
   currency: string;
   initial: Conversation;
+  /** Whether today is a trip day; picks the suggested first questions. */
+  traveling?: boolean;
   /** Sent once on mount (e.g. from a rain warning: "Day 3 오후에 비가 와요…"). */
   autoSend?: { message: string; focusDayId?: string };
 }) {
   const qc = useQueryClient();
   const key = ["companion", tripId] as const;
-  const { data } = useQuery({
+  const { data } = useSeededQuery({
     queryKey: key,
     queryFn: ({ signal }) => apiFetch<Conversation>(`/api/trips/${tripId}/companion`, { signal }),
     initialData: initial,
@@ -162,7 +168,7 @@ export function CompanionChat({
               지금 시간, 남은 일정, 날씨와 예산을 알고 대답해요. 일정 변경은 확인을 받은 뒤에만 적용돼요.
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
-              {STARTERS.map((s) => (
+              {(traveling ? STARTERS_TRAVELING : STARTERS_BEFORE).map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -281,7 +287,7 @@ export function CompanionChat({
             }}
             rows={1}
             maxLength={1000}
-            placeholder="예: 지금 너무 피곤해"
+            placeholder={traveling ? "예: 지금 너무 피곤해" : "예: 공항에서 시내 어떻게 가?"}
             className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border bg-card px-3.5 py-2.5 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
           />
           <Button type="submit" size="icon" aria-label="보내기" disabled={!draft.trim() || send.isPending}>

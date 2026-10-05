@@ -9,6 +9,7 @@ import { notFound } from "@/server/errors";
 import { parseOrThrow } from "@/server/validate";
 import { assertTripAccess } from "./trip-service";
 import { getTripWeather } from "./weather-service";
+import { isDomesticTrip } from "@/lib/timezone-guess";
 
 export const PACKING_GROUP_ORDER = ["필수 서류", "기본", "전자기기", "의류", "세면·건강", "날씨", "맞춤"];
 
@@ -75,7 +76,7 @@ export async function generatePacking(tripId: string, userId: string) {
   const temps = trip.weather;
   const context: PackingContext = {
     destination: trip.destination,
-    domestic: trip.timezone === "Asia/Seoul",
+    domestic: isDomesticTrip(trip.destination, trip.timezone),
     nights: diffDaysIso(fromDbDate(trip.startDate), fromDbDate(trip.endDate)),
     travelerCount: trip.travelerCount,
     styles: trip.styles.length ? trip.styles : (trip.owner.travelProfile?.styles ?? []),

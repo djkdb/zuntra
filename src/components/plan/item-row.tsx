@@ -91,7 +91,7 @@ export function ItemRow({
         <button type="button" onClick={editable ? onEdit : undefined} className="min-w-0 flex-1 py-1 text-left" disabled={!editable}>
           <span className={cn("flex items-center gap-1.5 font-medium", done && "text-muted-foreground line-through decoration-1")}>
             <span className="truncate">{item.title}</span>
-            {item.source === "AI" ? <SparklesIcon className="size-3.5 shrink-0 text-primary" aria-label="AI 추천" /> : null}
+            {item.source === "AI" ? <SparklesIcon className="size-3 shrink-0 text-muted-foreground" aria-label="AI 추천" /> : null}
           </span>
           <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted-foreground">
             <span>{CATEGORY_LABELS[item.category]}</span>

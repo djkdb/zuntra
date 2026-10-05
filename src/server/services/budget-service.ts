@@ -2,6 +2,8 @@ import "server-only";
 import type { ExpenseCategory, Prisma } from "@/generated/prisma/client";
 import { EXPENSE_CATEGORIES, type BudgetSummaryView, type ExpenseView } from "@/lib/budget";
 import { diffDaysIso, fromDbDate, todayInTimeZone, toDbDate } from "@/lib/dates";
+import { convertCurrency, localCurrencyFor, referenceRate } from "@/lib/fx";
+import { guessTimeZone } from "@/lib/timezone-guess";
 import { budgetSchema, expensePatchSchema, expenseSchema } from "@/lib/validation/budget";
 import { analyzeSpending } from "@/server/ai/trip-analyzer";
 import { track } from "@/server/analytics/track";
@@ -19,6 +21,9 @@ function toView(e: ExpenseRow): ExpenseView {
     category: e.category,
     amount: Number(e.amount),
     currency: e.currency,
+    originalAmount: e.originalAmount === null ? null : Number(e.originalAmount),
+    originalCurrency: e.originalCurrency,
+    fxRate: e.fxRate === null ? null : Number(e.fxRate),
     note: e.note,
     spentAt: e.spentAt.toISOString(),
     date: fromDbDate(new Date(Date.UTC(e.spentAt.getUTCFullYear(), e.spentAt.getUTCMonth(), e.spentAt.getUTCDate()))),
@@ -38,7 +43,7 @@ export async function getBudget(tripId: string, userId: string) {
     include: {
       budget: true,
       owner: { select: { travelProfile: { select: { budgetLevel: true } } } },
-      days: { orderBy: { dayNumber: "asc" }, select: { id: true, dayNumber: true, date: true } },
+      days: { orderBy: { dayNumber: "asc" }, select: { id: true, dayNumber: true, date: true, items: { select: { estimatedCost: true } } } },
       expenses: { orderBy: [{ spentAt: "desc" }, { createdAt: "desc" }], include: { day: { select: { dayNumber: true } } } },
     },
   });
@@ -57,7 +62,9 @@ export async function getBudget(tripId: string, userId: string) {
   const elapsed = Math.min(Math.max(diffDaysIso(startDate, today) + 1, 0), totalDays);
   const isFinal = trip.status === "COMPLETED" || today > endDate;
 
+  const planned = trip.days.reduce((sum, d) => sum + d.items.reduce((s, i) => s + (i.estimatedCost === null ? 0 : Number(i.estimatedCost)), 0), 0);
   const summary: BudgetSummaryView = {
+    planned,
     currency: trip.currency,
     travelerCount: trip.travelerCount,
     total,
@@ -91,13 +98,38 @@ export async function getBudget(tripId: string, userId: string) {
 
   return {
     canEdit: role !== "VIEWER",
-    trip: { startDate, endDate, timezone: trip.timezone, today },
+    trip: { startDate, endDate, timezone: trip.timezone, today, localCurrency: localCurrencyFor(guessTimeZone(trip.destination) ?? trip.timezone) },
     summary,
     expenses,
   };
 }
 
 export type BudgetData = Awaited<ReturnType<typeof getBudget>>;
+
+/** Amount in the trip currency (+ what was paid) for an expense entered in any currency. */
+function inTripCurrency(amount: number, currency: string | undefined, fxRate: number | undefined, tripCurrency: string) {
+  if (!currency || currency === tripCurrency) {
+    return { amount, originalAmount: null, originalCurrency: null, fxRate: null };
+  }
+  const rate = fxRate ?? referenceRate(currency, tripCurrency);
+  const converted = convertCurrency(amount, currency, tripCurrency, rate);
+  if (converted <= 0) throw new AppError("VALIDATION", "금액을 확인해 주세요.", { amount: "환산한 금액이 0이에요. 금액이나 환율을 확인해 주세요." });
+  return { amount: converted, originalAmount: amount, originalCurrency: currency, fxRate: rate };
+}
+
+/** Expenses may fall a week before/after the trip (deposits, late refunds) but not in 1999. */
+const EXPENSE_DATE_SLACK_DAYS = 7;
+
+async function assertExpenseDate(tripId: string, date: string) {
+  const trip = await db.trip.findUniqueOrThrow({ where: { id: tripId }, select: { startDate: true, endDate: true } });
+  const before = diffDaysIso(date, fromDbDate(trip.startDate));
+  const after = diffDaysIso(fromDbDate(trip.endDate), date);
+  if (before > EXPENSE_DATE_SLACK_DAYS || after > EXPENSE_DATE_SLACK_DAYS) {
+    throw new AppError("VALIDATION", "날짜를 확인해 주세요.", {
+      date: `여행 기간 앞뒤 ${EXPENSE_DATE_SLACK_DAYS}일 안의 날짜로 입력해 주세요.`,
+    });
+  }
+}
 
 /** Noon of the expense date in UTC keeps the calendar date stable in any server time zone. */
 function spentAtFor(date: string) {
@@ -107,6 +139,7 @@ function spentAtFor(date: string) {
 export async function addExpense(tripId: string, userId: string, raw: unknown) {
   await assertTripAccess(tripId, userId, "EDITOR");
   const input = parseOrThrow(expenseSchema, raw);
+  await assertExpenseDate(tripId, input.date);
   const trip = await db.trip.findUniqueOrThrow({ where: { id: tripId }, select: { currency: true } });
   if (input.itineraryItemId) {
     const item = await db.itineraryItem.findFirst({ where: { id: input.itineraryItemId, day: { tripId } } });
@@ -121,7 +154,7 @@ export async function addExpense(tripId: string, userId: string, raw: unknown) {
       itineraryItemId: input.itineraryItemId ?? null,
       title: input.title,
       category: input.category,
-      amount: input.amount,
+      ...inTripCurrency(input.amount, input.currency, input.fxRate, trip.currency),
       currency: trip.currency,
       note: input.note,
       spentAt: spentAtFor(input.date),
@@ -136,13 +169,14 @@ export async function updateExpense(tripId: string, userId: string, expenseId: s
   const input = parseOrThrow(expensePatchSchema, raw);
   const existing = await db.expense.findFirst({ where: { id: expenseId, tripId } });
   if (!existing) throw notFound("지출");
+  if (input.date) await assertExpenseDate(tripId, input.date);
   const day = input.date ? await dayForDate(tripId, input.date) : undefined;
   await db.expense.update({
     where: { id: expenseId },
     data: {
       title: input.title,
       category: input.category,
-      amount: input.amount,
+      ...(input.amount !== undefined ? inTripCurrency(input.amount, input.currency, input.fxRate, existing.currency) : {}),
       note: input.note,
       spentAt: input.date ? spentAtFor(input.date) : undefined,
       dayId: input.date ? (day?.id ?? null) : undefined,

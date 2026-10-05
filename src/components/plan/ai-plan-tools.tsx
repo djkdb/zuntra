@@ -37,6 +37,7 @@ export function GeneratePlanDialog({
   tripId,
   day,
   hasEmptyDays,
+  totalItems,
   open,
   onOpenChange,
   initialMode,
@@ -44,6 +45,8 @@ export function GeneratePlanDialog({
   tripId: string;
   day: DayView;
   hasEmptyDays: boolean;
+  /** Items across the whole trip, to say how many a full rebuild replaces. */
+  totalItems: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialMode?: GenerateMode;
@@ -73,9 +76,12 @@ export function GeneratePlanDialog({
       description: "이미 만든 일정은 그대로 두고 빈 날만 채워요.",
       disabled: !hasEmptyDays,
     },
-    { value: "day", label: `DAY ${day.dayNumber}만 새로 만들기`, description: "이 날의 일정을 AI 일정으로 바꿔요." },
+    { value: "day", label: `${day.dayNumber}일차만 새로 만들기`, description: "이 날의 일정을 AI 일정으로 바꿔요." },
     { value: "replace_all", label: "전체 다시 만들기", description: "모든 날의 일정을 새로 만들어요. 기존 일정은 사라져요." },
   ];
+
+  // What this run would replace. Hand-made plans should never vanish without saying so.
+  const replaced = mode === "day" ? day.items.length : mode === "replace_all" ? totalItems : 0;
 
   return (
     <Dialog open={open} onOpenChange={(next) => !generate.isPending && onOpenChange(next)}>
@@ -126,6 +132,11 @@ export function GeneratePlanDialog({
                 </label>
               ))}
             </fieldset>
+            {replaced > 0 ? (
+              <p role="note" className="rounded-lg border border-warning/50 bg-warning/10 px-3 py-2.5 text-sm">
+                지금 있는 일정 {replaced}개가 AI 일정으로 바뀌어요. 직접 넣은 일정도 포함돼요.
+              </p>
+            ) : null}
             <Field label="AI에게 바라는 점" optional hint="예: 맛집과 카페를 좋아하고 너무 빡빡한 일정은 싫어.">
               {(p) => (
                 <Textarea {...p} rows={3} maxLength={500} value={request} onChange={(e) => setRequest(e.target.value)} />
@@ -140,7 +151,7 @@ export function GeneratePlanDialog({
           </Button>
           <Button onClick={() => generate.mutate()} disabled={generate.isPending}>
             {generate.isPending ? <Loader2Icon className="animate-spin" data-icon="inline-start" aria-hidden /> : null}
-            {mode === "fill_empty" ? "일정 만들기" : "만들기"}
+            {replaced > 0 ? `${replaced}개 바꾸고 만들기` : "일정 만들기"}
           </Button>
         </DialogFooter>
       </DialogContent>

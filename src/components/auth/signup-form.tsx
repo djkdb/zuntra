@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 import { signUpAction } from "@/app/(auth)/actions";
-import { Field, FormMessage } from "@/components/forms/field";
+import { Field, FormMessage, useFocusFirstError } from "@/components/forms/field";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Input } from "@/components/ui/input";
 import { initialFormState } from "@/lib/action-state";
 
 export function SignupForm() {
   const [state, action] = useActionState(signUpAction, initialFormState);
+  const formRef = useRef<HTMLFormElement>(null);
+  useFocusFirstError(formRef, state);
 
   return (
-    <form action={action} className="space-y-5" noValidate>
+    <form ref={formRef} action={action} className="space-y-5" noValidate>
       <FormMessage message={state.message} />
       <Field label="이름" error={state.fields?.name}>
         {(props) => <Input {...props} name="name" autoComplete="name" required maxLength={40} autoFocus defaultValue={state.values?.name} />}

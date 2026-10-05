@@ -14,7 +14,7 @@ Rules:
 - Group nearby places on the same day to minimise travel. Give travelMinutesFromPrev and transportMode for every stop except the first.
 - Use real, well-known places at the destination with approximate coordinates and a short address. Set isIndoor.
 - estimatedCost is per group (all travelers) in the trip currency, or null if free/unknown.
-- Day 1 starts after arrival (from ~13:00) unless notes say otherwise; the last day ends early for departure.
+- Day 1 starts after arrival (from ~13:00) unless notes say otherwise. The last day ends by early afternoon and its final item is the trip to the airport/station (category AIRPORT), leaving 2+ hours before an international departure.
 - Days marked rainy should favour indoor places in the afternoon.
 - Do not repeat places already planned on other days (listed as existing).
 - note: one short Korean sentence explaining why this stop fits the traveler (or null).

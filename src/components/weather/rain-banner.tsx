@@ -3,9 +3,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { RainSuggestion } from "@/lib/weather";
 
-/** Weather tied to the plan: "Day 3 오후에 비가 예상됩니다. 실내 일정으로 변경할까요?" */
+/** Weather tied to the plan: "3일차 오후에 비 소식이 있어요. 실내 일정으로 바꿀까요?" */
 export function RainBanner({ tripId, suggestion, canEdit }: { tripId: string; suggestion: RainSuggestion; canEdit: boolean }) {
-  const prompt = `Day ${suggestion.dayNumber} 오후에 비가 예상돼요. ${suggestion.outdoorTitles[0]} 같은 야외 일정을 실내 일정으로 바꿔줄래?`;
+  const prompt = `${suggestion.dayNumber}일차 오후에 비 소식이 있어요. ${suggestion.outdoorTitles[0]} 같은 야외 일정을 실내 일정으로 바꿔줄래?`;
   const href = `/trips/${tripId}/companion?q=${encodeURIComponent(prompt)}&day=${suggestion.dayId}`;
   return (
     <div role="status" className="flex flex-col gap-3 rounded-lg border border-primary/20 bg-secondary/60 p-4 sm:flex-row sm:items-center">

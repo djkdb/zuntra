@@ -1,4 +1,5 @@
 import "server-only";
+import { withJosa } from "@/lib/korean";
 
 export type AppErrorCode =
   | "UNAUTHORIZED"
@@ -27,6 +28,8 @@ export class AppError extends Error {
     public readonly code: AppErrorCode,
     message: string,
     public readonly fields?: Record<string, string>,
+    /** Sent as Retry-After for RATE_LIMITED responses. */
+    public readonly retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = "AppError";
@@ -37,4 +40,4 @@ export class AppError extends Error {
   }
 }
 
-export const notFound = (what = "요청한 항목") => new AppError("NOT_FOUND", `${what}을(를) 찾을 수 없어요.`);
+export const notFound = (what = "요청한 항목") => new AppError("NOT_FOUND", `${withJosa(what, "을/를")} 찾을 수 없어요.`);

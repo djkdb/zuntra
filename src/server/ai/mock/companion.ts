@@ -6,6 +6,9 @@ import { formatDelay, reflowDay } from "@/lib/schedule";
 import type { CompanionContext, ContextItem } from "../context/trip-context";
 import type { CompanionActionDraft, CompanionReply } from "../schemas/companion";
 import { type Poi, findCity } from "./poi-catalog";
+import { josa, withJosa } from "@/lib/korean";
+import { formatMoney } from "@/lib/format";
+import { weatherLabel } from "@/lib/weather";
 
 export interface MockCompanionInput {
   ctx: CompanionContext;
@@ -62,7 +65,7 @@ function travelText(ctx: CompanionContext, to: LatLng | null): string {
 }
 
 function nowText(ctx: CompanionContext) {
-  return ctx.focusDay?.isToday ? `현재 ${formatMinute(ctx.now.minute)}이고` : `Day ${ctx.focusDay?.dayNumber ?? 1} 기준으로`;
+  return ctx.focusDay?.isToday ? `현재 ${formatMinute(ctx.now.minute)}이고` : `${ctx.focusDay?.dayNumber ?? 1}일차 기준으로`;
 }
 
 function extractMinutes(message: string): number {
@@ -90,6 +93,39 @@ export function mockCompanion({ ctx, message }: MockCompanionInput): CompanionRe
   const edit = ctx.canEdit;
   const dayNumber = ctx.focusDay?.dayNumber ?? 1;
 
+  // 0) First-timer questions before/while travelling. General guidance only, with a nudge to
+  // confirm details locally: the mock has no live transit or exchange-rate data.
+  const city = findCity(ctx.trip.destination);
+  if (/공항.*(시내|숙소|호텔|가|이동)|(시내|숙소).*공항/.test(text)) {
+    const airport = city?.airport?.name ?? "공항";
+    return {
+      message: `‘${airport}’에서 시내까지는 보통 공항철도나 리무진 버스로 1시간 안팎이에요. 짐이 많거나 밤늦게 도착하면 택시가 편하지만 비싸요. 노선과 요금은 도착 후 공항 안내 데스크에서 한 번 더 확인해 주세요.`,
+      quickReplies: ["환전은 얼마나 해야 해?", "교통패스 필요해?"],
+      actions: [],
+    };
+  }
+  if (/환전|현금|카드\s*(돼|되|써)/.test(text)) {
+    return {
+      message: "요즘은 카드 결제가 되는 곳이 많지만, 시장·노점·작은 식당이나 교통카드 충전은 현금이 필요할 때가 있어요. 현지에서 쓸 예산의 20~30%쯤을 현금으로, 나머지는 해외 결제 카드로 준비하면 무난해요.",
+      quickReplies: ["예산 얼마나 썼어?", "공항에서 시내 어떻게 가?"],
+      actions: [],
+    };
+  }
+  if (/패스|교통\s*카드|jr|지하철|버스\s*타/i.test(text)) {
+    return {
+      message: "교통패스는 하루에 이동이 많을 때만 이득이에요. 일정 탭에서 하루에 대중교통으로 몇 번 이동하는지 보고, 3~4번 넘는 날이 많으면 패스를, 아니면 충전식 교통카드를 추천해요.",
+      quickReplies: ["공항에서 시내 어떻게 가?", "오늘 일정 알려줘"],
+      actions: [],
+    };
+  }
+  if (/길\s*(을)?\s*잃|말이\s*안\s*통|언어|못\s*해|영어|일본어|중국어/.test(text)) {
+    return {
+      message: "숙소 주소를 현지 글자로 캡처해 두고, 지도 앱에서 여행지 지도를 오프라인으로 저장해 두세요. 길을 잃으면 가까운 역이나 편의점에서 캡처한 주소를 보여 주면 대부분 도와줘요. 이 앱의 지도 탭에서 오늘 동선도 다시 볼 수 있어요.",
+      quickReplies: ["오늘 일정 알려줘", "밥 먹을 곳 추천해줘"],
+      actions: [],
+    };
+  }
+
   // 1) Fatigue → drop one optional stop, head back to the hotel.
   if (/피곤|힘들|지쳤|지친|쉬고\s*싶|다리\s*아|졸려|tired/i.test(text)) {
     const victim = [...left]
@@ -100,7 +136,7 @@ export function mockCompanion({ ctx, message }: MockCompanionInput): CompanionRe
       : "숙소 근처에서 쉬어 가는 것도 좋아요.";
     return {
       message: `${nowText(ctx)} 오늘 일정이 ${left.length}개 남아 있어요. ${lodgingText}\n${
-        victim ? `오늘은 ‘${victim.title}’을(를) 빼고 숙소 근처에서 저녁을 먹는 걸 추천해요.` : "남은 일정은 가볍게 이어가는 걸 추천해요."
+        victim ? `오늘은 ‘${victim.title}’${josa(victim.title, "을/를")} 빼고 숙소 근처에서 저녁을 먹는 걸 추천해요.` : "남은 일정은 가볍게 이어가는 걸 추천해요."
       } 어떻게 할까요?`,
       quickReplies: ["현재 일정 유지", "숙소로 이동"],
       actions: edit && victim ? [action({ type: "REMOVE_PLACE", label: "일정 줄이기", ref: victim.ref })] : [],
@@ -136,11 +172,11 @@ export function mockCompanion({ ctx, message }: MockCompanionInput): CompanionRe
     const outdoor = left.find((i) => i.isIndoor === false || ["NATURE", "SIGHTSEEING", "ACTIVITY"].includes(i.category));
     const indoor = nearestPois(ctx, ["CULTURE", "SIGHTSEEING", "SHOPPING", "ACTIVITY"], { indoor: true })[0];
     const weatherText = ctx.weather
-      ? `오늘은 ${ctx.weather.condition}, ${ctx.weather.tempMin}–${ctx.weather.tempMax}°C${ctx.weather.precipitation !== null ? `, 강수확률 ${ctx.weather.precipitation}%` : ""}예요.`
+      ? `오늘은 ${weatherLabel(ctx.weather.condition)}, ${ctx.weather.tempMin}–${ctx.weather.tempMax}°C${ctx.weather.precipitation !== null ? `, 강수확률 ${ctx.weather.precipitation}%` : ""}예요.`
       : "아직 날씨 정보를 받지 못했어요.";
     if ((rainy || /비/.test(text)) && outdoor && indoor) {
       return {
-        message: `${weatherText} ‘${outdoor.title}’은(는) 야외 일정이라 비를 맞을 수 있어요. 대신 실내인 ‘${indoor.name}’(으)로 바꿀까요?${travelText(ctx, indoor) ? ` (${travelText(ctx, indoor)})` : ""}`,
+        message: `${weatherText} ‘${outdoor.title}’${josa(outdoor.title, "은/는")} 야외 일정이라 비를 맞을 수 있어요. 대신 실내인 ‘${indoor.name}’${josa(indoor.name, "으로/로")} 바꿀까요?${travelText(ctx, indoor) ? ` (${travelText(ctx, indoor)})` : ""}`,
         quickReplies: ["그대로 갈게", "다른 실내 장소"],
         actions: edit ? [action({ type: "REPLACE_PLACE", label: "실내 일정으로 변경", ref: outdoor.ref, ...placeFields(indoor) })] : [],
       };
@@ -158,7 +194,7 @@ export function mockCompanion({ ctx, message }: MockCompanionInput): CompanionRe
     const alt = target ? nearestPois(ctx, [target.category === "FOOD" ? "FOOD" : target.category])[0] ?? nearestPois(ctx, ["SIGHTSEEING", "CULTURE"])[0] : undefined;
     if (target && alt) {
       return {
-        message: `아쉽네요. 근처에 ‘${alt.name}’이(가) 있어요${travelText(ctx, alt) ? ` (${travelText(ctx, alt)})` : ""}. ‘${target.title}’ 대신 가 볼까요?`,
+        message: `아쉽네요. 근처에 ‘${alt.name}’${josa(alt.name, "이/가")} 있어요${travelText(ctx, alt) ? ` (${travelText(ctx, alt)})` : ""}. ‘${target.title}’ 대신 가 볼까요?`,
         quickReplies: ["다른 곳 추천해줘"],
         actions: edit ? [action({ type: "SUGGEST_ALTERNATIVE", label: "대체 장소로 변경", ref: target.ref, ...placeFields(alt) })] : [],
       };
@@ -171,7 +207,7 @@ export function mockCompanion({ ctx, message }: MockCompanionInput): CompanionRe
     if (target) {
       const start = Math.ceil((ctx.now.minute + 15) / 5) * 5;
       return {
-        message: `${nowText(ctx)} ‘${target.title}’은(는) ${formatMinute(start)}부터 시작하면 돼요. 이후 일정도 이동시간에 맞춰 함께 미룰까요?`,
+        message: `${nowText(ctx)} ‘${target.title}’${josa(target.title, "은/는")} ${formatMinute(start)}부터 시작하면 돼요. 이후 일정도 이동시간에 맞춰 함께 미룰까요?`,
         quickReplies: ["일정 하나 빼줘", "그대로 둘게"],
         actions: edit ? [action({ type: "RESCHEDULE", label: "일정 미루기", ref: target.ref, startTime: formatMinute(Math.min(start, 1435)) })] : [],
       };
@@ -204,14 +240,14 @@ export function mockCompanion({ ctx, message }: MockCompanionInput): CompanionRe
     const { total, spent } = ctx.budget;
     const amount = /예산.*(으로|로)\s*(늘|줄|바꿔|변경|해)/.test(text) ? extractAmount(text) : null;
     const top = Object.entries(ctx.budget.byCategory).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0];
-    const fmt = (n: number) => `${Math.round(n).toLocaleString("ko-KR")} ${ctx.trip.currency}`;
+    const fmt = (n: number) => formatMoney(n, ctx.trip.currency);
     return {
       message:
         amount !== null
-          ? `총 예산을 ${fmt(amount)}(으)로 바꿀까요?`
+          ? `총 예산을 ${withJosa(fmt(amount), "으로/로")} 바꿀까요?`
           : total
-            ? `지금까지 ${fmt(spent)}을(를) 써서 예산의 ${Math.round((spent / total) * 100)}%를 사용했어요.${top ? ` 가장 많이 쓴 항목은 ${categoryLabel(top[0])}이에요.` : ""}`
-            : `지금까지 ${fmt(spent)}을(를) 썼어요. 예산을 정해 두면 사용률을 알려드릴게요.`,
+            ? `지금까지 ${withJosa(fmt(spent), "을/를")} 써서 예산의 ${Math.round((spent / total) * 100)}%를 사용했어요.${top ? ` 가장 많이 쓴 항목은 ${categoryLabel(top[0])}이에요.` : ""}`
+            : `지금까지 ${withJosa(fmt(spent), "을/를")} 썼어요. 예산을 정해 두면 사용률을 알려드릴게요.`,
       quickReplies: ["경비 기록하기"],
       actions:
         edit && amount !== null
@@ -233,15 +269,23 @@ export function mockCompanion({ ctx, message }: MockCompanionInput): CompanionRe
   // 9) Default: where am I in the day?
   if (!ctx.focusDay || ctx.items.length === 0) {
     return {
-      message: `아직 ${ctx.focusDay ? `Day ${ctx.focusDay.dayNumber}` : "이번 여행"} 일정이 비어 있어요. 일정 탭에서 AI 일정을 만들거나, 가고 싶은 곳을 말해 주세요.`,
+      message: `아직 ${ctx.focusDay ? `${ctx.focusDay.dayNumber}일차` : "이번 여행"} 일정이 비어 있어요. 일정 탭에서 AI 일정을 만들거나, 가고 싶은 곳을 말해 주세요.`,
       quickReplies: ["밥 먹을 곳 추천해줘", "비 오면 어떡하지?"],
+      actions: [],
+    };
+  }
+  // Something we don't handle: say so and offer what we can do, rather than a status dump.
+  if (!/지금|오늘|다음|일정|어디|뭐\s*하/.test(text)) {
+    return {
+      message: "그 질문은 아직 잘 모르겠어요. 대신 일정 줄이기·늘리기, 비 올 때 대안, 근처 식당 추천, 예산 확인은 바로 도와드릴 수 있어요.",
+      quickReplies: ["오늘 일정 알려줘", "비 오면 어떡하지?", "예산 얼마나 썼어?"],
       actions: [],
     };
   }
   const parts = [`${nowText(ctx)} 오늘 일정이 ${left.length}개 남아 있어요.`];
   if (current) parts.push(`지금은 ‘${current.title}’ 일정이에요.`);
   if (next) parts.push(`다음은 ${formatMinute(next.startMinute)} ‘${next.title}’${travelText(ctx, next.location) ? `, ${travelText(ctx, next.location)}` : ""}이에요.`);
-  if (ctx.weather) parts.push(`날씨는 ${ctx.weather.condition}, 최고 ${ctx.weather.tempMax}°C예요.`);
+  if (ctx.weather) parts.push(`날씨는 ${weatherLabel(ctx.weather.condition)}, 최고 ${ctx.weather.tempMax}°C예요.`);
   return {
     message: parts.join(" "),
     quickReplies: ["지금 너무 피곤해", "밥 먹고 어디 가지?", "1시간 더 있을래"],

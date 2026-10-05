@@ -13,6 +13,7 @@ import { MAX_PHOTOS_PER_ENTRY, MAX_PHOTO_BYTES, MOOD_OPTIONS, type PhotoView } f
 import { resizeImage } from "@/lib/image-resize";
 import { cn } from "@/lib/utils";
 import type { JournalData } from "@/server/services/journal-service";
+import { MoodIcon } from "@/components/journal/mood-icon";
 
 async function uploadOne(tripId: string, file: File): Promise<PhotoView> {
   const { blob, width, height } = await resizeImage(file);
@@ -114,36 +115,40 @@ export function JournalComposer({
         onChange={(e) => setContent(e.target.value)}
         rows={3}
         maxLength={2000}
-        placeholder="예: 오늘 시부야에서 먹은 라멘 진짜 맛있었다."
+        placeholder="오늘 가장 기억에 남는 순간을 적어 보세요."
       />
 
       <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="기분">
-        {MOOD_OPTIONS.map((m) => (
+        {MOOD_OPTIONS.map((m, index) => (
           <button
             key={m.value}
             type="button"
             role="radio"
             aria-checked={mood === m.value}
+            tabIndex={rovingTabIndex(MOOD_OPTIONS.map((o) => o.value), mood, index)}
+            onKeyDown={(e) => rovingKeyDown(e, MOOD_OPTIONS.map((o) => o.value), mood ?? MOOD_OPTIONS[0]!.value, setMood)}
             onClick={() => setMood(mood === m.value ? null : m.value)}
             className={cn(
-              "inline-flex h-9 items-center gap-1 rounded-full border px-3 text-sm",
+              "inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm",
               mood === m.value ? "border-primary bg-secondary font-medium" : "hover:bg-muted",
             )}
           >
-            <span aria-hidden>{m.emoji}</span>
+            <MoodIcon mood={m.value} />
             {m.label}
           </button>
         ))}
       </div>
 
       <div className="flex items-center gap-1" role="radiogroup" aria-label="별점">
-        {[1, 2, 3, 4, 5].map((n) => (
+        {RATINGS.map((n, index) => (
           <button
             key={n}
             type="button"
             role="radio"
             aria-checked={rating === n}
             aria-label={`${n}점`}
+            tabIndex={rovingTabIndex(RATINGS, rating, index)}
+            onKeyDown={(e) => rovingKeyDown(e, RATINGS, rating ?? 1, setRating)}
             onClick={() => setRating(rating === n ? null : n)}
             className="p-1"
           >
@@ -236,4 +241,22 @@ export function JournalComposer({
       </div>
     </section>
   );
+}
+
+const RATINGS = [1, 2, 3, 4, 5];
+
+/** ARIA radio group: one tab stop (the checked option, else the first). */
+function rovingTabIndex<T>(values: T[], current: T | null, index: number) {
+  return (current === null ? index === 0 : values[index] === current) ? 0 : -1;
+}
+
+/** Arrow keys move the selection (and focus) within the group. */
+function rovingKeyDown<T>(e: React.KeyboardEvent<HTMLButtonElement>, values: T[], current: T, select: (v: T) => void) {
+  const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+  if (!step) return;
+  e.preventDefault();
+  const next = (values.indexOf(current) + step + values.length) % values.length;
+  select(values[next]!);
+  const buttons = e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+  buttons?.[next]?.focus();
 }

@@ -2,6 +2,7 @@ import "server-only";
 import { formatMoney } from "@/lib/format";
 import type { ReporterContext } from "../prompts/reporter";
 import type { ReportNarrative } from "../schemas/reporter";
+import { withJosa } from "@/lib/korean";
 
 export function mockReport(ctx: ReporterContext): ReportNarrative {
   const s = ctx.stats;
@@ -17,7 +18,7 @@ export function mockReport(ctx: ReporterContext): ReportNarrative {
     h.memorablePlace ? `가장 기억에 남은 곳은 ‘${h.memorablePlace}’였어요.` : null,
     h.favoriteFood ? `특히 ‘${h.favoriteFood}’에서의 식사가 인상 깊었네요.` : null,
     s.totalSpent > 0
-      ? `총 ${formatMoney(s.totalSpent, s.currency)}, 1인당 ${formatMoney(s.perPerson, s.currency)}을(를) 썼어요${
+      ? `총 ${formatMoney(s.totalSpent, s.currency)}, 1인당 ${withJosa(formatMoney(s.perPerson, s.currency), "을/를")} 썼어요${
           s.budget ? (s.totalSpent <= s.budget ? " — 예산 안에서 알차게 다녀왔어요." : " — 예산보다 조금 더 썼지만 그만큼 즐거웠던 여행이에요.") : "."
         }`
       : null,

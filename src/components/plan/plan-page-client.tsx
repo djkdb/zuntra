@@ -53,6 +53,7 @@ export function PlanPageClient({ tripId, initialData, initialDayNumber }: { trip
           tripId={tripId}
           day={open.day}
           hasEmptyDays={hasEmptyDays}
+          totalItems={(data ?? initialData).days.reduce((n, d) => n + d.items.length, 0)}
           initialMode={open.mode}
           open
           onOpenChange={(o) => !o && setOpen(null)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, Loader2Icon, PackageCheckIcon, PlusIcon, SparklesIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -11,13 +11,14 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { apiFetch, errorMessage } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type { PackingData, PackingItemView } from "@/server/services/packing-service";
+import { useSeededQuery } from "@/components/use-seeded-query";
 
 const GROUPS = ["필수 서류", "기본", "전자기기", "의류", "세면·건강", "날씨", "맞춤"];
 
 export function PackingClient({ tripId, initialData }: { tripId: string; initialData: PackingData }) {
   const qc = useQueryClient();
   const key = ["packing", tripId] as const;
-  const { data = initialData } = useQuery({
+  const { data = initialData } = useSeededQuery({
     queryKey: key,
     queryFn: ({ signal }) => apiFetch<PackingData>(`/api/trips/${tripId}/packing`, { signal }),
     initialData,
@@ -39,13 +40,24 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
     onSuccess: set,
     onError,
   });
+  // Shows the new item at once (like check/delete) and clears the field for the next one.
   const add = useMutation({
-    mutationFn: () => apiFetch<PackingData>(`/api/trips/${tripId}/packing`, { method: "POST", body: { name, group } }),
-    onSuccess: (next) => {
-      set(next);
+    mutationFn: (vars: { name: string; group: string }) =>
+      apiFetch<PackingData>(`/api/trips/${tripId}/packing`, { method: "POST", body: vars }),
+    onMutate: (vars) => {
       setName("");
+      qc.setQueryData<PackingData>(key, (d) =>
+        d && {
+          ...d,
+          items: [...d.items, { id: `pending-${Date.now()}`, name: vars.name, group: vars.group, quantity: 1, isPacked: false, reason: null, source: "USER" }],
+        },
+      );
     },
-    onError,
+    onSuccess: set,
+    onError: (e, vars) => {
+      setName(vars.name);
+      onError(e);
+    },
   });
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch<PackingData>(`/api/trips/${tripId}/packing/${id}`, { method: "DELETE" }),
@@ -98,13 +110,13 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
           className="flex max-w-2xl gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (name.trim()) add.mutate();
+            if (name.trim()) add.mutate({ name: name.trim(), group });
           }}
         >
           <label htmlFor="packing-name" className="sr-only">
             준비물 이름
           </label>
-          <Input id="packing-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="예: 축구 유니폼" className="flex-1" />
+          <Input id="packing-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="예: 여권 사본, 동전지갑" className="flex-1" />
           <div className="w-32 shrink-0">
             <label htmlFor="packing-group" className="sr-only">
               분류
@@ -115,7 +127,7 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
               ))}
             </NativeSelect>
           </div>
-          <Button type="submit" size="icon-lg" aria-label="준비물 추가" disabled={!name.trim() || add.isPending}>
+          <Button type="submit" size="icon" aria-label="준비물 추가" disabled={!name.trim()}>
             <PlusIcon />
           </Button>
         </form>
@@ -150,10 +162,10 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
                     role="checkbox"
                     aria-checked={item.isPacked}
                     aria-label={`${item.name} 챙김`}
-                    disabled={!data.canEdit}
+                    disabled={!data.canEdit || item.id.startsWith("pending-")}
                     onClick={() => toggle.mutate(item)}
                     className={cn(
-                      "flex size-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
+                      "relative flex size-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors after:absolute after:-inset-2",
                       item.isPacked ? "border-success bg-success text-white" : "border-border hover:border-primary",
                     )}
                   >
@@ -172,7 +184,13 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
                     ) : null}
                   </span>
                   {data.canEdit ? (
-                    <Button variant="ghost" size="icon-sm" aria-label={`${item.name} 삭제`} onClick={() => remove.mutate(item.id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`${item.name} 삭제`}
+                      disabled={item.id.startsWith("pending-")}
+                      onClick={() => remove.mutate(item.id)}
+                    >
                       <Trash2Icon />
                     </Button>
                   ) : null}

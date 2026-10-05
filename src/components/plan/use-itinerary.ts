@@ -1,11 +1,12 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { apiFetch, errorMessage } from "@/lib/api-client";
+import { ApiError, apiFetch, errorMessage } from "@/lib/api-client";
 import type { DayView } from "@/lib/itinerary";
 import { moveWithinDay } from "@/lib/schedule";
 import type { Itinerary } from "@/server/services/itinerary-service";
+import { useSeededQuery } from "@/components/use-seeded-query";
 
 export const itineraryKey = (tripId: string) => ["itinerary", tripId] as const;
 
@@ -18,7 +19,7 @@ function mergeDays(current: Itinerary | undefined, days: DayView[]): Itinerary |
 }
 
 export function useItinerary(tripId: string, initialData?: Itinerary) {
-  return useQuery({
+  return useSeededQuery({
     queryKey: itineraryKey(tripId),
     queryFn: ({ signal }) => apiFetch<Itinerary>(`/api/trips/${tripId}/itinerary`, { signal }),
     // Server-rendered data counts as fresh from the moment it is hydrated.
@@ -45,6 +46,8 @@ function useDaysMutation<TVars, TResult extends DaysResult = DaysResult>(
     },
     onError: (error, _vars, ctx) => {
       if (ctx?.previous) qc.setQueryData(key, ctx.previous);
+      // Someone else changed it first: show their version instead of our stale copy.
+      if (error instanceof ApiError && error.status === 409) void qc.invalidateQueries({ queryKey: key });
       toast.error(errorMessage(error));
     },
     onSuccess: (result) => {
