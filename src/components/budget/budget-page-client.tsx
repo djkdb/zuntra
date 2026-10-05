@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangleIcon, CheckCircle2Icon, InfoIcon, Loader2Icon, PencilIcon, PlusIcon, SettingsIcon, Trash2Icon, WalletIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Field, FormMessage } from "@/components/forms/field";
 import { EmptyState } from "@/components/states/empty-state";
@@ -16,6 +16,7 @@ import { formatShortDate } from "@/lib/dates";
 import { formatMoney, parseAmountText } from "@/lib/format";
 import { CURRENCIES } from "@/lib/constants";
 import { convertCurrency, referenceRate } from "@/lib/fx";
+import { focusAfterRemoval } from "@/lib/focus";
 import { cn } from "@/lib/utils";
 import type { BudgetData } from "@/server/services/budget-service";
 import { BudgetMeter, CategoryBars, DailyColumns } from "./budget-charts";
@@ -144,15 +145,19 @@ export function BudgetPageClient({ tripId, initialData }: { tripId: string; init
                       </span>
                       {canEdit ? (
                         <span className="flex">
-                          <Button variant="ghost" size="icon-sm" aria-label={`${e.title} 수정`} onClick={() => setExpenseDialog({ mode: "edit", expense: e })}>
+                          <Button variant="ghost" size="icon-sm" className="max-sm:size-10" aria-label={`${e.title} 수정`} onClick={() => setExpenseDialog({ mode: "edit", expense: e })}>
                             <PencilIcon />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon-sm"
+                            className="max-sm:size-10"
                             aria-label={`${e.title} 삭제`}
                             disabled={remove.isPending}
-                            onClick={() => remove.mutate(e.id)}
+                            onClick={(ev) => {
+                              const restoreFocus = focusAfterRemoval(ev.currentTarget.closest("li"));
+                              remove.mutate(e.id, { onSuccess: restoreFocus });
+                            }}
                           >
                             <Trash2Icon />
                           </Button>
@@ -210,7 +215,14 @@ function ExpenseDialog({
       toast.success(editing ? "지출을 수정했어요." : "지출을 기록했어요.");
       onClose();
     },
+    // Move to the first field the server rejected (once React has marked it invalid).
+    onError: () =>
+      requestAnimationFrame(() => {
+        const field = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+        field?.focus();
+      }),
   });
+  const formRef = useRef<HTMLFormElement>(null);
   const fields = save.error instanceof ApiError ? save.error.fields ?? {} : {};
 
   // Pay in whatever currency you paid in; it's converted to the trip currency with a rate you
@@ -233,6 +245,7 @@ function ExpenseDialog({
           <DialogDescription>낸 통화 그대로 적으면 여행 통화({tripCurrency})로 바꿔서 합계에 넣어요.</DialogDescription>
         </DialogHeader>
         <form
+          ref={formRef}
           className="space-y-4"
           noValidate
           onSubmit={(e) => {
@@ -253,7 +266,10 @@ function ExpenseDialog({
           <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] gap-3">
             <Field label="금액" error={fields.amount} hint={preview !== null ? `≈ ${formatMoney(preview, tripCurrency)}` : undefined}>
               {(p) => (
-                <Input {...p} name="amount" inputMode="decimal" value={amountText} onChange={(e) => setAmountText(e.target.value)} placeholder="0" autoFocus required />
+                <Input {...p} name="amount" inputMode="decimal" value={amountText} onChange={(e) => {
+                    setAmountText(e.target.value);
+                    if (fields.amount) save.reset();
+                  }} placeholder="0" autoFocus required />
               )}
             </Field>
             <Field label="통화" error={fields.currency}>

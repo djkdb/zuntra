@@ -1,7 +1,7 @@
 "use client";
 
 import { PencilIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 
 /**
@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 export function DayTitleEditor({ title, editable, onSave }: { title: string | null; editable: boolean; onSave: (title: string | null) => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(title ?? "");
+  // Leaving the field with Enter/Escape unmounts it; put focus back on the edit button.
+  const refocus = useRef(false);
   if (editing) {
     const commit = () => {
       setEditing(false);
@@ -27,6 +29,12 @@ export function DayTitleEditor({ title, editable, onSave }: { title: string | nu
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === "Escape") {
+            // Focus moves to the edit button within this keydown; without this the same Enter
+            // would "click" it and reopen the field.
+            e.preventDefault();
+            refocus.current = true;
+          }
           if (e.key === "Enter") commit();
           if (e.key === "Escape") {
             setDraft(title ?? "");
@@ -41,11 +49,17 @@ export function DayTitleEditor({ title, editable, onSave }: { title: string | nu
   return (
     <button
       type="button"
+      ref={(el) => {
+        if (el && refocus.current) {
+          refocus.current = false;
+          el.focus();
+        }
+      }}
       onClick={() => {
         setDraft(title ?? "");
         setEditing(true);
       }}
-      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm font-normal text-muted-foreground hover:bg-muted hover:text-foreground"
+      className="inline-flex min-h-8 items-center gap-1 rounded-md px-1.5 py-0.5 text-sm font-normal text-muted-foreground hover:bg-muted hover:text-foreground"
       aria-label={title ? `이 날의 제목 ‘${title}’ 바꾸기` : "이 날의 제목 붙이기"}
     >
       {title ?? "제목 붙이기"}

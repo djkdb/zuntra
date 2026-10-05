@@ -30,6 +30,7 @@ import { formatShortDate, todayInTimeZone } from "@/lib/dates";
 import { formatMoney } from "@/lib/format";
 import { type DayView, type ItineraryItemView, TRANSPORT_LABELS, formatMinute } from "@/lib/itinerary";
 import { analyzeDay, endOf, formatDelay, reflowDay } from "@/lib/schedule";
+import { focusAfterRemoval } from "@/lib/focus";
 import { cn } from "@/lib/utils";
 import type { Itinerary } from "@/server/services/itinerary-service";
 import { type ItemDraft, ItemDialog } from "./item-dialog";
@@ -139,9 +140,11 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
   };
 
   // Delete at once and offer an undo instead of asking first: a slip costs one tap to fix.
-  const deleteWithUndo = (item: ItineraryItemView) =>
+  const deleteWithUndo = (item: ItineraryItemView) => {
+    const restoreFocus = focusAfterRemoval(document.getElementById(`plan-item-${item.id}`));
     m.deleteItem.mutate(item.id, {
-      onSuccess: () =>
+      onSuccess: () => {
+        restoreFocus();
         toast(`‘${item.title}’ 일정을 지웠어요.`, {
           duration: 6000,
           action: {
@@ -165,8 +168,10 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
                 { onSuccess: () => toast.success("일정을 되살렸어요.") },
               ),
           },
-        }),
+        });
+      },
     });
+  };
 
   const showAlert = editable && issues.length > 0 && dismissedIssues !== issueSignature;
 

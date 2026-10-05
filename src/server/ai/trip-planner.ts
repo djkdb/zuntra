@@ -125,7 +125,11 @@ export async function generatePlan(tripId: string, userId: string, raw: unknown)
   // never wipe a day's plan for an empty result.
   const empty = targets.filter((t) => (byNumber.get(t.dayNumber)?.items.length ?? 0) === 0);
   if (empty.length === targets.length) {
-    throw new AppError("AI_FAILED", "일정을 만들지 못했어요. 요청을 조금 바꿔 다시 시도해 주세요.");
+    const labels = targets.map((d) => `${d.dayNumber}일차`).join(", ");
+    throw new AppError(
+      "AI_FAILED",
+      `${labels}에 넣을 장소를 찾지 못했어요. 다른 날과 겹치지 않는 후보가 부족했을 수 있어요. 직접 추가하거나 관심사를 바꿔 다시 시도해 주세요.`,
+    );
   }
   if (empty.length > 0) {
     const labels = empty.map((d) => `${d.dayNumber}일차`).join(", ");

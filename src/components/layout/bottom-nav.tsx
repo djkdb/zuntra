@@ -79,6 +79,7 @@ export function BottomNav({ focusTripId }: { focusTripId: string | null }) {
             type="button"
             onClick={() => setMoreOpen(true)}
             aria-haspopup="dialog"
+            aria-expanded={moreOpen}
             aria-current={moreActive ? "page" : undefined}
             className={cn(
               "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors",
@@ -91,7 +92,7 @@ export function BottomNav({ focusTripId }: { focusTripId: string | null }) {
         </li>
       </ul>
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="pb-safe rounded-t-xl">
+        <SheetContent side="bottom" className="pb-safe rounded-t-xl" aria-describedby={undefined}>
           <SheetHeader>
             <SheetTitle>더보기</SheetTitle>
           </SheetHeader>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { apiFetch, errorMessage } from "@/lib/api-client";
+import { focusAfterRemoval } from "@/lib/focus";
 import { cn } from "@/lib/utils";
 import type { PackingData, PackingItemView } from "@/server/services/packing-service";
 import { useSeededQuery } from "@/components/use-seeded-query";
@@ -165,7 +166,7 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
                     disabled={!data.canEdit || item.id.startsWith("pending-")}
                     onClick={() => toggle.mutate(item)}
                     className={cn(
-                      "relative flex size-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors after:absolute after:-inset-2",
+                      "relative flex size-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors after:absolute after:-inset-2.5",
                       item.isPacked ? "border-success bg-success text-white" : "border-border hover:border-primary",
                     )}
                   >
@@ -189,7 +190,12 @@ export function PackingClient({ tripId, initialData }: { tripId: string; initial
                       size="icon-sm"
                       aria-label={`${item.name} 삭제`}
                       disabled={item.id.startsWith("pending-")}
-                      onClick={() => remove.mutate(item.id)}
+                      className="max-sm:size-10"
+                      onClick={(e) => {
+                        const restoreFocus = focusAfterRemoval(e.currentTarget.closest("li"));
+                        remove.mutate(item.id);
+                        restoreFocus();
+                      }}
                     >
                       <Trash2Icon />
                     </Button>
