@@ -4,6 +4,7 @@ import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persist
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
 import { useEffect, useState } from "react";
+import { refreshPages } from "@/app/cache-actions";
 import { ApiError } from "@/lib/api-client";
 
 const CACHE_BUSTER = "v1";
@@ -29,6 +30,21 @@ export function QueryProvider({ userId, children }: { userId: string; children: 
         },
       }),
   );
+  // Server-rendered tabs are kept in the client router cache for a short while; after a change,
+  // drop those copies so other tabs never show pre-change numbers.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = client.getMutationCache().subscribe((event) => {
+      if (event.type !== "updated" || event.mutation.state.status !== "success") return;
+      clearTimeout(timer);
+      timer = setTimeout(() => void refreshPages().catch(() => {}), 400);
+    });
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [client]);
+
   // Restore/persist outside React. A provider that flips "restoring" state while the page is
   // still hydrating forces React to client-render streamed Suspense boundaries, which can leave
   // the server-streamed copy of a page in the DOM next to the client one.

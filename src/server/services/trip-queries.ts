@@ -19,3 +19,16 @@ export const getTripForPage = cache(async (tripId: string, userId: string) => {
     throw error;
   }
 });
+
+/**
+ * Page data for a trip tab, loaded in parallel with the trip itself. A member check failing
+ * inside the data loader renders the same 404 page as `getTripForPage`.
+ */
+export async function tripPageData<T>(tripId: string, userId: string, load: () => Promise<T>) {
+  const toNotFound = (error: unknown): never => {
+    if (error instanceof AppError && error.code === "NOT_FOUND") notFound();
+    throw error;
+  };
+  const [trip, data] = await Promise.all([getTripForPage(tripId, userId), load().catch(toNotFound)]);
+  return { trip, data };
+}

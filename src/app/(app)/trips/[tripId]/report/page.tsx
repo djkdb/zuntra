@@ -11,15 +11,14 @@ import { formatMoney } from "@/lib/format";
 import { MOOD_OPTIONS } from "@/lib/journal";
 import { getReport } from "@/server/ai/travel-reporter";
 import { requireOnboardedUser } from "@/server/auth/session";
-import { getTripForPage } from "@/server/services/trip-queries";
+import { tripPageData } from "@/server/services/trip-queries";
 
 export const metadata: Metadata = { title: "여행 리포트" };
 
 export default async function ReportPage(props: PageProps<"/trips/[tripId]/report">) {
   const { tripId } = await props.params;
   const user = await requireOnboardedUser();
-  const trip = await getTripForPage(tripId, user.id);
-  const report = await getReport(tripId, user.id);
+  const { trip, data: report } = await tripPageData(tripId, user.id, () => getReport(tripId, user.id));
 
   if (!report) {
     return (

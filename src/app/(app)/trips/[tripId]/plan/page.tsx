@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PlanPageClient } from "@/components/plan/plan-page-client";
 import { requireOnboardedUser } from "@/server/auth/session";
 import { getItinerary } from "@/server/services/itinerary-service";
-import { getTripForPage } from "@/server/services/trip-queries";
+import { tripPageData } from "@/server/services/trip-queries";
 
 export const metadata: Metadata = { title: "일정" };
 
@@ -11,7 +11,6 @@ export default async function TripPlanPage(props: PageProps<"/trips/[tripId]/pla
   const dayNumber = Number(searchParams.day) || undefined;
   const user = await requireOnboardedUser();
   // Resolves to the 404 page for non-members before anything else is loaded.
-  await getTripForPage(tripId, user.id);
-  const itinerary = await getItinerary(tripId, user.id);
+  const { data: itinerary } = await tripPageData(tripId, user.id, () => getItinerary(tripId, user.id));
   return <PlanPageClient tripId={tripId} initialData={itinerary} initialDayNumber={dayNumber} />;
 }

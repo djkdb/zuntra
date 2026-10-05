@@ -11,6 +11,11 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    // Trip tabs are fully prefetched and reused for a short while instead of a server round trip
+    // per click. Every mutation clears them (server actions revalidate; see refreshPages for API calls).
+    staleTimes: { dynamic: 30, static: 60 },
+  },
   reactStrictMode: true,
   // OG image fonts are read from disk at build time.
   outputFileTracingIncludes: {

@@ -44,6 +44,7 @@ export function BottomNav({ focusTripId }: { focusTripId: string | null }) {
             <Link
               href={item.href}
               aria-current={item.active ? "page" : undefined}
+              prefetch
               className={cn(
                 "flex flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors",
                 item.active && "text-primary",

@@ -4,15 +4,17 @@ import { TodayView } from "@/components/today/today-view";
 import { getConversation } from "@/server/ai/trip-companion";
 import { requireOnboardedUser } from "@/server/auth/session";
 import { getTodayData } from "@/server/services/today-service";
-import { getTripForPage } from "@/server/services/trip-queries";
+import { tripPageData } from "@/server/services/trip-queries";
 
 export const metadata: Metadata = { title: "AI 동행" };
 
 export default async function CompanionPage(props: PageProps<"/trips/[tripId]/companion">) {
   const [{ tripId }, searchParams] = await Promise.all([props.params, props.searchParams]);
   const user = await requireOnboardedUser();
-  const trip = await getTripForPage(tripId, user.id);
-  const [conversation, today] = await Promise.all([getConversation(tripId, user.id), getTodayData(tripId, user.id)]);
+  const {
+    trip,
+    data: [conversation, today],
+  } = await tripPageData(tripId, user.id, () => Promise.all([getConversation(tripId, user.id), getTodayData(tripId, user.id)]));
 
   const q = typeof searchParams.q === "string" ? searchParams.q.slice(0, 500) : undefined;
   const day = typeof searchParams.day === "string" ? searchParams.day : undefined;

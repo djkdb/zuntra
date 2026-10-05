@@ -73,7 +73,12 @@ export function AppSidebar({
               const active = pathname === href;
               return (
                 <li key={section.segment}>
-                  <Link href={href} className={linkClass(active)} aria-current={active ? "page" : undefined}>
+                  <Link
+                    href={href}
+                    className={linkClass(active)}
+                    aria-current={active ? "page" : undefined}
+                    prefetch
+                  >
                     <section.icon className="size-4" aria-hidden />
                     {section.label}
                   </Link>

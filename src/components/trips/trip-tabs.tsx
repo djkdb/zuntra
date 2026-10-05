@@ -19,6 +19,9 @@ export function TripTabs({ tripId, completed }: { tripId: string; completed?: bo
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
+                // Full prefetch (not just the loading shell): switching tabs then renders at once
+                // instead of flashing the skeleton while the server responds.
+                prefetch
                 className={cn(
                   "relative inline-flex h-10 items-center gap-1.5 px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
                   active &&
