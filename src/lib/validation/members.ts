@@ -6,7 +6,12 @@ export const createInviteSchema = z.object({ role: inviteRoleSchema.default("EDI
 
 export const memberPatchSchema = z.object({ role: inviteRoleSchema });
 
-export const participantNameSchema = z.string().trim().min(1, "이름을 입력해 주세요.").max(20, "20자 이내로 입력해 주세요.");
+export const participantNameSchema = z
+  .string("이름을 입력해 주세요.")
+  .trim()
+  .min(1, "이름을 입력해 주세요.")
+  .max(20, "20자 이내로 입력해 주세요.")
+  .refine((v) => !/[\p{Cc}\u202A-\u202E\u2066-\u2069]/u.test(v), "줄바꿈이나 특수 제어 문자는 쓸 수 없어요.");
 
 export const participantSchema = z.object({ name: participantNameSchema });
 

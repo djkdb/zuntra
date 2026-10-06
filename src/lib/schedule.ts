@@ -32,7 +32,12 @@ export interface ScheduleChange {
   id: string;
   from: number;
   to: number;
+  /** Set when the stop was shortened to finish before a booking. */
+  durationTo?: number;
 }
+
+/** Shortest a stop is cut to before it is moved past a booking instead. */
+const MIN_STAY = 15;
 
 export function travelOf(item: ScheduleItem, index: number): number {
   if (index === 0) return 0;
@@ -58,25 +63,54 @@ export function analyzeDay(items: ScheduleItem[]): ScheduleIssue[] {
 
 /**
  * Pushes stops later (never earlier) so each one starts after the previous stop ends plus
- * travel. Items before `fromIndex`, finished items and fixed bookings keep their times; a stop
- * pushed into a fixed booking is reported in `blocked` instead of moving the booking.
+ * travel. Items before `fromIndex`, finished items and fixed bookings keep their times. A stop
+ * that would run into a booking goes after it instead (so the returned order can change; sort
+ * `items` by time). `blocked` lists bookings that still clash with something that cannot move.
  */
 export function reflowDay(items: ScheduleItem[], fromIndex = 0) {
   const result = items.map((i) => ({ ...i }));
   const changes: ScheduleChange[] = [];
   const blocked: string[] = [];
-  for (let i = Math.max(fromIndex, 1); i < result.length; i++) {
+  const bookings = result.filter((i) => i.isFixed);
+  let clock = -Infinity; // end of everything placed so far
+  let pinned = -Infinity; // end of what cannot move (done, before fromIndex, bookings)
+  for (let i = 0; i < result.length; i++) {
     const item = result[i]!;
-    if (item.status === "DONE") continue;
-    if (item.isFixed) {
-      if (item.startMinute < endOf(result[i - 1]!) + travelOf(item, i)) blocked.push(item.id);
+    const travel = travelOf(item, i);
+    if (i < fromIndex || item.status === "DONE" || item.isFixed) {
+      if (item.isFixed && item.startMinute < pinned + travel) blocked.push(item.id);
+      clock = Math.max(clock, endOf(item));
+      pinned = Math.max(pinned, endOf(item));
       continue;
     }
-    const earliest = endOf(result[i - 1]!) + travelOf(item, i);
-    if (item.startMinute < earliest) {
-      changes.push({ id: item.id, from: item.startMinute, to: earliest });
-      item.startMinute = earliest;
+    let start = Math.max(item.startMinute, clock + travel);
+    let duration = item.durationMinutes;
+    // A stop running into a booking is shortened to end in time (plus the trip to the booking);
+    // only when too little would be left does it move to after the booking.
+    for (let guard = 0; guard < bookings.length; guard++) {
+      // Ending right at a booking's start still leaves no time to get there.
+      const hit = bookings.find(
+        (b) => start < endOf(b) && start + duration + (b.startMinute >= start ? (b.travelMinutesFromPrev ?? DEFAULT_TRAVEL_MINUTES) : 0) > b.startMinute,
+      );
+      if (!hit) break;
+      const room = hit.startMinute - (hit.travelMinutesFromPrev ?? DEFAULT_TRAVEL_MINUTES) - start;
+      if (room >= Math.min(MIN_STAY, duration)) {
+        duration = room;
+        break;
+      }
+      start = endOf(hit) + DEFAULT_TRAVEL_MINUTES;
     }
+    if (start !== item.startMinute || duration !== item.durationMinutes) {
+      changes.push({
+        id: item.id,
+        from: item.startMinute,
+        to: start,
+        ...(duration !== item.durationMinutes ? { durationTo: duration } : {}),
+      });
+      item.startMinute = start;
+      item.durationMinutes = duration;
+    }
+    clock = Math.max(clock, endOf(item));
   }
   const maxDelay = changes.reduce((m, c) => Math.max(m, c.to - c.from), 0);
   const overflow = result.filter((i) => endOf(i) > DAY_END + 1).map((i) => i.id);
@@ -99,7 +133,9 @@ export function moveWithinDay<T extends ScheduleItem>(items: T[], itemId: string
   const [moved] = next.splice(from, 1);
   const index = Math.min(Math.max(toIndex, 0), next.length);
   const slotOwner = items[index];
-  next.splice(index, 0, { ...moved!, startMinute: slotOwner && index !== from ? slotOwner.startMinute : moved!.startMinute });
+  // A booking keeps its slot; the moved stop keeps its own time and gets sorted out by reflow.
+  const takeSlot = slotOwner && index !== from && !slotOwner.isFixed;
+  next.splice(index, 0, { ...moved!, startMinute: takeSlot ? slotOwner.startMinute : moved!.startMinute });
   return next;
 }
 

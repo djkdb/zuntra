@@ -40,10 +40,10 @@ export default async function TripLayout(props: LayoutProps<"/trips/[tripId]">) 
           </p>
         </div>
         <div className="flex shrink-0 gap-1.5 sm:gap-2">
-          <Button asChild variant="ghost" size="sm" className="text-muted-foreground max-sm:size-9 max-sm:px-0">
-            <Link href={`/trips/${trip.id}/members`} aria-label={`함께하는 사람 ${trip.memberCount}명`}>
+          <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+            <Link href={`/trips/${trip.id}/members`} aria-label={trip.memberCount > 1 ? `일행 ${trip.memberCount}명, 초대하기` : "일행 초대하기"}>
               <UsersIcon data-icon="inline-start" aria-hidden />
-              <span className="max-sm:sr-only">{trip.memberCount > 1 ? `함께 ${trip.memberCount}` : "초대"}</span>
+              {trip.memberCount > 1 ? `일행 ${trip.memberCount}` : "초대"}
             </Link>
           </Button>
           <ExportMenu tripId={trip.id} />

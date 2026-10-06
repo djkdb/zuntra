@@ -5,8 +5,10 @@ import { cn } from "@/lib/utils";
 import { WeatherIcon } from "./weather-icon";
 
 /** Per-day forecast for the trip: condition, high/low and chance of rain. */
-export function WeatherStrip({ days, stale, today }: { days: DayWeatherView[]; stale?: boolean; today?: string }) {
+export function WeatherStrip({ days, stale, today, destination }: { days: DayWeatherView[]; stale?: boolean; today?: string; destination?: string }) {
   const anyAvailable = days.some((d) => d.available);
+  // Multi-city trip: every card names its place so the rows line up and compare.
+  const multiCity = days.some((d) => d.place);
   return (
     <section aria-labelledby="weather-title" className="space-y-3">
       <div className="flex items-baseline justify-between">
@@ -28,7 +30,11 @@ export function WeatherStrip({ days, stale, today }: { days: DayWeatherView[]; s
           >
             <span className="text-xs font-semibold">DAY {d.dayNumber}</span>
             <span className="text-[11px] text-muted-foreground">{formatShortDate(d.date).replace(/ \(.\)/, "")}</span>
-            {d.place ? <span className="max-w-full truncate text-[11px] font-medium text-primary">{d.place}</span> : null}
+            {multiCity ? (
+              <span className={cn("max-w-full truncate text-[11px] font-medium", d.place ? "text-primary" : "text-muted-foreground")}>
+                {d.place ?? destination}
+              </span>
+            ) : null}
             {d.available ? (
               <>
                 <WeatherIcon condition={d.condition} className="my-1 size-7" />

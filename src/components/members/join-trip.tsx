@@ -12,9 +12,13 @@ import { cn } from "@/lib/utils";
  * Accepts an invite. If the trip already tracks costs under names (e.g. "민수"), the joiner can
  * say which one they are so past expenses stay theirs.
  */
-export function JoinTrip({ token, unclaimed }: { token: string; unclaimed: { id: string; name: string }[] }) {
+export function JoinTrip({ token, unclaimed, myName }: { token: string; unclaimed: { id: string; name: string }[]; myName?: string | null }) {
   const router = useRouter();
-  const [participantId, setParticipantId] = useState<string>("");
+  // A name matching theirs is most likely them; otherwise they must choose, so nobody ends up
+  // twice in the split by tapping straight through.
+  const [participantId, setParticipantId] = useState<string | null>(
+    () => unclaimed.find((p) => p.name.trim() === myName?.trim())?.id ?? (unclaimed.length === 0 ? "" : null),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // This page sits outside the app shell (no query client), so a plain request is enough.
@@ -37,9 +41,10 @@ export function JoinTrip({ token, unclaimed }: { token: string; unclaimed: { id:
     <div className="mt-6 space-y-5">
       {unclaimed.length > 0 ? (
         <fieldset>
-          <legend className="text-sm font-medium">경비 정산에 이미 등록된 이름이 있어요. 본인이 있나요?</legend>
+          <legend className="text-sm font-medium">이 중에 내 이름이 있나요?</legend>
+          <p className="mt-0.5 text-xs text-muted-foreground">고르면 그동안 그 이름으로 기록된 경비가 내 것으로 이어져요.</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {[{ id: "", name: "없어요, 새로 추가" }, ...unclaimed].map((p) => (
+            {[...unclaimed, { id: "", name: "목록에 없어요" }].map((p) => (
               <label
                 key={p.id || "new"}
                 className={cn(
@@ -62,7 +67,7 @@ export function JoinTrip({ token, unclaimed }: { token: string; unclaimed: { id:
         </fieldset>
       ) : null}
       <FormMessage message={error ?? undefined} />
-      <Button size="lg" className="w-full" onClick={accept} disabled={busy}>
+      <Button size="lg" className="w-full" onClick={accept} disabled={busy || participantId === null}>
         {busy ? <Loader2Icon className="animate-spin" data-icon="inline-start" aria-hidden /> : null}
         여행에 참여하기
       </Button>

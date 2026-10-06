@@ -101,7 +101,7 @@ export function BudgetPageClient({ tripId, initialData }: { tripId: string; init
         </div>
       ) : null}
 
-      {data.settlement && expenses.length > 0 ? <SettlementCard tripId={tripId} settlement={data.settlement} currency={summary.currency} /> : null}
+      {data.settlement && expenses.length > 0 ? <SettlementCard tripId={tripId} settlement={data.settlement} currency={summary.currency} meId={data.participants.find((p) => p.isMe)?.id} /> : null}
 
       <section aria-labelledby="expenses-title" className="space-y-4">
         <h2 id="expenses-title" className="text-lg font-semibold">
@@ -242,7 +242,10 @@ function ExpenseDialog({
   const foreign = currency !== tripCurrency;
   const parsedAmount = parseAmountText(amountText);
   const parsedRate = /^\d+(\.\d+)?$/.test(rateText.trim()) ? Number(rateText) : Number.NaN;
-  const people = data.participants;
+  // People who left only appear when this expense already involves them.
+  const people = data.participants.filter(
+    (x) => !x.left || x.id === editing?.paidById || Boolean(editing?.splitWith.includes(x.id)),
+  );
   const me = people.find((x) => x.isMe)?.id ?? "";
   const [paidBy, setPaidBy] = useState(editing ? (editing.paidById ?? "") : me);
   const [sharers, setSharers] = useState<string[]>(() =>
@@ -359,10 +362,11 @@ function ExpenseDialog({
 }
 
 function splitLabel(e: ExpenseView, people: BudgetData["participants"]) {
-  if (!e.paidById) return "정산 제외";
-  const payer = people.find((p) => p.id === e.paidById)?.name ?? "?";
-  const n = e.splitWith.length || people.length;
-  return n === people.length ? `${payer} 냄 · 다 같이` : `${payer} 냄 · ${n}명`;
+  if (!e.paidById) return "개인 지출";
+  const name = (id: string) => people.find((p) => p.id === id)?.name ?? "?";
+  const sharers = e.splitWith.length ? e.splitWith : people.filter((p) => !p.left).map((p) => p.id);
+  const who = sharers.length === 1 ? `${name(sharers[0]!)}만` : sharers.length === people.length ? `${sharers.length}명 모두` : `${sharers.length}명`;
+  return `${name(e.paidById)} 냄 · ${who}`;
 }
 
 /** "Who paid" and "split with whom" for groups; empty split list on save means everyone. */
@@ -390,10 +394,10 @@ function SplitFields({
           <NativeSelect {...p} value={paidBy} onChange={(e) => onPaidBy(e.target.value)}>
             {people.map((x) => (
               <option key={x.id} value={x.id}>
-                {x.isMe ? `${x.name} (나)` : x.name}
+                {x.isMe ? `${x.name} (나)` : x.left ? `${x.name} (나감)` : x.name}
               </option>
             ))}
-            <option value="">정산에서 빼기</option>
+            <option value="">개인 지출 (정산 제외)</option>
           </NativeSelect>
         )}
       </Field>
@@ -418,7 +422,7 @@ function SplitFields({
                 >
                   <input type="checkbox" className="sr-only" checked={on} onChange={() => toggle(x.id)} />
                   {on ? <CheckIcon className="size-3.5" aria-hidden /> : null}
-                  {x.name}
+                  {x.left ? `${x.name} (나감)` : x.name}
                 </label>
               );
             })}
@@ -506,5 +510,6 @@ function BudgetDialog({
 
 /** A rate with enough digits to be useful either way round (9.1 KRW/JPY, 0.0067 USD/JPY…). */
 function formatRate(rate: number): string {
-  return String(Number(rate.toPrecision(rate >= 1 ? 6 : 4)));
+  // Two decimals read as a rate people recognise (9.18); small rates keep three significant digits.
+  return String(rate >= 1 ? Number(rate.toFixed(2)) : Number(rate.toPrecision(3)));
 }

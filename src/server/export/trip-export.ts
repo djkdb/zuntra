@@ -1,6 +1,7 @@
 import "server-only";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/budget";
 import { CATEGORY_LABELS, TRANSPORT_LABELS, formatMinute } from "@/lib/itinerary";
+import { withJosa } from "@/lib/korean";
 import type { BudgetData } from "@/server/services/budget-service";
 import type { Itinerary } from "@/server/services/itinerary-service";
 
@@ -46,7 +47,7 @@ export function itineraryToIcs(itinerary: Itinerary): string {
       const end = new Date(start.getTime() + Math.max(item.durationMinutes, 15) * 60_000);
       const details = [
         CATEGORY_LABELS[item.category],
-        item.transportMode && item.travelMinutesFromPrev !== null ? `${TRANSPORT_LABELS[item.transportMode]}로 ${item.travelMinutesFromPrev}분` : null,
+        item.transportMode && item.travelMinutesFromPrev !== null ? `${withJosa(TRANSPORT_LABELS[item.transportMode], "으로/로")} ${item.travelMinutesFromPrev}분` : null,
         item.bookingRef ? `예약 번호: ${item.bookingRef}` : null,
         item.note,
       ].filter(Boolean);

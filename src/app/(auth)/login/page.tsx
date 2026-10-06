@@ -18,8 +18,17 @@ export default async function LoginPage(props: PageProps<"/login">) {
 
   return (
     <>
-      <h1 className="text-3xl font-bold">다시 만나서 반가워요</h1>
-      <p className="mt-2 mb-8 text-muted-foreground">로그인하고 여행을 이어가세요.</p>
+      {callbackUrl.startsWith("/join/") ? (
+        <>
+          <h1 className="text-3xl font-bold">초대받은 여행에 들어가요</h1>
+          <p className="mt-2 mb-8 text-muted-foreground">로그인하면 바로 참여할 수 있어요. 처음이면 아래에서 가입해 주세요.</p>
+        </>
+      ) : (
+        <>
+          <h1 className="text-3xl font-bold">다시 만나서 반가워요</h1>
+          <p className="mt-2 mb-8 text-muted-foreground">로그인하고 여행을 이어가세요.</p>
+        </>
+      )}
       <LoginForm callbackUrl={callbackUrl} notice={notice} />
     </>
   );

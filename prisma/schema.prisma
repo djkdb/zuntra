@@ -319,6 +319,8 @@ model TripParticipant {
   tripId    String
   name      String
   userId    String?
+  /// Set when the person left or was removed: kept for past expenses, left out of new splits.
+  leftAt    DateTime?
   createdAt DateTime @default(now())
 
   trip   Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)

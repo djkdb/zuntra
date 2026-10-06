@@ -7,6 +7,7 @@ import {
   MenuIcon,
   NotebookPenIcon,
   PackageCheckIcon,
+  PlusIcon,
   SettingsIcon,
   SparklesIcon,
   UsersIcon,
@@ -48,9 +49,10 @@ export function BottomNav({ focusTripId }: { focusTripId: string | null }) {
           { href: tripHref("budget"), label: "경비", icon: WalletIcon },
           { href: tripHref("packing"), label: "준비물", icon: PackageCheckIcon },
           { href: tripHref("journal"), label: "기록", icon: NotebookPenIcon },
-          { href: tripHref("members"), label: "함께", icon: UsersIcon },
+          { href: tripHref("members"), label: "일행 초대", icon: UsersIcon },
         ]
       : []),
+    { href: "/trips/new", label: "새 여행", icon: PlusIcon },
     { href: "/settings", label: "설정", icon: SettingsIcon },
   ];
 

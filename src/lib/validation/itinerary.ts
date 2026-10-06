@@ -47,10 +47,25 @@ export const moveItemSchema = z.object({
 
 export const reflowSchema = z.object({ fromItemId: z.string().min(1).optional() });
 
+// Line breaks and bidi overrides make names render deceptively.
+const CONTROL_CHARS = /[\p{Cc}\u202A-\u202E\u2066-\u2069]/u;
+
 export const updateDaySchema = z.object({
-  title: z.string().trim().max(40).nullable().optional(),
+  title: z
+    .string()
+    .trim()
+    .max(40, "40자 이내로 입력해 주세요.")
+    .refine((v) => !CONTROL_CHARS.test(v), "줄바꿈이나 특수 제어 문자는 쓸 수 없어요.")
+    .nullable()
+    .optional(),
   /** Where the traveller is based that day; empty clears it (back to the trip destination). */
-  city: z.string().trim().max(40, "40자 이내로 입력해 주세요.").nullable().optional(),
+  city: z
+    .string()
+    .trim()
+    .max(40, "40자 이내로 입력해 주세요.")
+    .refine((v) => !CONTROL_CHARS.test(v), "줄바꿈이나 특수 제어 문자는 쓸 수 없어요.")
+    .nullable()
+    .optional(),
   /** Also set `city` on every later day (multi-city trips: "from here on, 교토"). */
   applyToFollowing: z.boolean().optional(),
   notes: z.string().trim().max(1000).nullable().optional(),
@@ -65,7 +80,14 @@ const clock = z.string().trim().regex(/^([01]?\d|2[0-3]):[0-5]\d$/, "시간을 0
 export const flightSchema = z.object({
   direction: z.enum(["arrival", "departure"]),
   dayId: z.string().min(1),
-  flightNumber: z.string().trim().min(2, "편명을 입력해 주세요.").max(12, "편명을 확인해 주세요.").transform((v) => v.toUpperCase().replace(/\s+/g, "")),
+  /** Optional: first-timers often only know the airline and the time. */
+  flightNumber: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? v.toUpperCase().replace(/[\s-]+/g, "") : null))
+    // Airline code (2 letters/digits, or 3 letters) + 1–4 digits, e.g. KE723, 7C1101, JJA1301.
+    .refine((v) => v === null || /^([A-Z0-9]{2}|[A-Z]{3})\d{1,4}[A-Z]?$/.test(v), "편명은 항공권에 적힌 영문+숫자예요. 예: KE723 (모르면 비워 두세요)"),
   /** Airport on the destination side ("간사이공항", "KIX"). */
   airport: z.string().trim().max(40).optional().transform((v) => v || null),
   /** Arrival: landing time. Departure: take-off time. Local time at the destination. */

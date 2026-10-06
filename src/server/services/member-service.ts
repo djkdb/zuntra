@@ -1,6 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import type { Prisma, TripMemberRole } from "@/generated/prisma/client";
+import { Prisma, type TripMemberRole } from "@/generated/prisma/client";
 import { fromDbDate } from "@/lib/dates";
 import {
   acceptInviteSchema,
@@ -42,9 +42,16 @@ export async function listParticipants(tripId: string) {
   const rows = await db.tripParticipant.findMany({
     where: { tripId },
     orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, userId: true, _count: { select: { paid: true, shares: true } } },
+    select: { id: true, name: true, userId: true, leftAt: true, _count: { select: { paid: true, shares: true } } },
   });
-  return rows.map((p) => ({ id: p.id, name: p.name, userId: p.userId, inUse: p._count.paid + p._count.shares > 0 }));
+  return rows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    userId: p.userId,
+    /** Left the trip: still settles past expenses, not part of new splits. */
+    left: p.leftAt !== null,
+    inUse: p._count.paid + p._count.shares > 0,
+  }));
 }
 
 export type ParticipantView = Awaited<ReturnType<typeof listParticipants>>[number];
@@ -52,9 +59,12 @@ export type ParticipantView = Awaited<ReturnType<typeof listParticipants>>[numbe
 export async function addParticipant(tripId: string, userId: string, raw: unknown) {
   await assertTripAccess(tripId, userId, "EDITOR");
   const { name } = parseOrThrow(participantSchema, raw);
-  const count = await db.tripParticipant.count({ where: { tripId } });
-  if (count >= 30) throw new AppError("VALIDATION", "함께하는 사람은 30명까지 추가할 수 있어요.");
-  await db.tripParticipant.create({ data: { tripId, name } });
+  await db.$transaction(async (tx) => {
+    await lockTrip(tx, tripId);
+    const count = await tx.tripParticipant.count({ where: { tripId } });
+    if (count >= 30) throw new AppError("VALIDATION", "함께하는 사람은 30명까지 추가할 수 있어요.");
+    await tx.tripParticipant.create({ data: { tripId, name } });
+  });
   return listParticipants(tripId);
 }
 
@@ -104,7 +114,9 @@ export async function getMembers(tripId: string, userId: string) {
     myRole,
     members: members.map((m) => ({
       userId: m.userId,
-      name: displayName(m.user),
+      // The name they go by on this trip (picked when joining), same as in the cost split.
+      name: participants.find((p) => p.userId === m.userId)?.name ?? displayName(m.user),
+      accountName: displayName(m.user),
       // Emails are only shown to the owner, who manages the list.
       email: myRole === "OWNER" || m.userId === userId ? m.user.email : null,
       role: m.role,
@@ -122,15 +134,19 @@ export async function createInvite(tripId: string, userId: string, raw: unknown)
   await assertTripAccess(tripId, userId, "OWNER");
   const { role } = parseOrThrow(createInviteSchema, raw);
   // One live link per role: making a new one retires the old, so a leaked link can be cut off.
-  await db.tripInvite.updateMany({ where: { tripId, role, revokedAt: null }, data: { revokedAt: new Date() } });
-  await db.tripInvite.create({
-    data: {
-      tripId,
-      role,
-      createdById: userId,
-      token: randomBytes(18).toString("base64url"),
-      expiresAt: new Date(Date.now() + INVITE_DAYS * 24 * 60 * 60 * 1000),
-    },
+  // The trip row lock keeps two simultaneous "new link" clicks from leaving two links alive.
+  await db.$transaction(async (tx) => {
+    await lockTrip(tx, tripId);
+    await tx.tripInvite.updateMany({ where: { tripId, role, revokedAt: null }, data: { revokedAt: new Date() } });
+    await tx.tripInvite.create({
+      data: {
+        tripId,
+        role,
+        createdById: userId,
+        token: randomBytes(18).toString("base64url"),
+        expiresAt: new Date(Date.now() + INVITE_DAYS * 24 * 60 * 60 * 1000),
+      },
+    });
   });
   await track("create_invite", { userId, tripId, properties: { role } });
   return getMembers(tripId, userId);
@@ -138,7 +154,9 @@ export async function createInvite(tripId: string, userId: string, raw: unknown)
 
 export async function revokeInvite(tripId: string, userId: string, inviteId: string) {
   await assertTripAccess(tripId, userId, "OWNER");
-  await db.tripInvite.updateMany({ where: { id: inviteId, tripId, revokedAt: null }, data: { revokedAt: new Date() } });
+  const invite = await db.tripInvite.findFirst({ where: { id: inviteId, tripId }, select: { id: true } });
+  if (!invite) throw notFound("초대");
+  await db.tripInvite.updateMany({ where: { id: inviteId, revokedAt: null }, data: { revokedAt: new Date() } });
   return getMembers(tripId, userId);
 }
 
@@ -152,7 +170,10 @@ export async function updateMemberRole(tripId: string, userId: string, memberUse
   return getMembers(tripId, userId);
 }
 
-/** The owner removes someone, or a member leaves. Their name stays in past expenses. */
+/**
+ * The owner removes someone, or a member leaves. Their name stays in past expenses but is left
+ * out of new splits. Removing someone also retires the live invite links they may still hold.
+ */
 export async function removeMember(tripId: string, userId: string, memberUserId: string) {
   const myRole = await assertTripAccess(tripId, userId);
   const leaving = memberUserId === userId;
@@ -160,9 +181,12 @@ export async function removeMember(tripId: string, userId: string, memberUserId:
   const target = await db.tripMember.findUnique({ where: { tripId_userId: { tripId, userId: memberUserId } }, select: { role: true } });
   if (!target) throw notFound("멤버");
   if (target.role === "OWNER") throw new AppError("VALIDATION", "여행을 만든 사람은 나갈 수 없어요. 여행을 삭제해 주세요.");
+  const now = new Date();
   await db.$transaction([
     db.tripMember.delete({ where: { tripId_userId: { tripId, userId: memberUserId } } }),
-    db.tripParticipant.updateMany({ where: { tripId, userId: memberUserId }, data: { userId: null } }),
+    // Stays linked to the account (so a later rejoin picks it back up) but is marked as gone.
+    db.tripParticipant.updateMany({ where: { tripId, userId: memberUserId }, data: { leftAt: now } }),
+    ...(leaving ? [] : [db.tripInvite.updateMany({ where: { tripId, revokedAt: null }, data: { revokedAt: now } })]),
   ]);
   return leaving ? null : getMembers(tripId, userId);
 }
@@ -186,17 +210,20 @@ async function liveInvite(token: string) {
   return { state: "ok" as const, invite };
 }
 
-/** What the join page shows before the user accepts. */
-export async function getInvitePreview(token: string, userId: string) {
+/**
+ * What the join page shows before the user accepts. Signed-out visitors (userId null) see who
+ * invited them and to which trip, but not the names on the trip.
+ */
+export async function getInvitePreview(token: string, userId: string | null) {
   const found = await liveInvite(token);
   if (found.state !== "ok") return { state: found.state };
   const { invite } = found;
-  const membership = await db.tripMember.findUnique({
-    where: { tripId_userId: { tripId: invite.tripId, userId } },
-    select: { role: true },
-  });
-  const unclaimed = await db.tripParticipant.findMany({
-    where: { tripId: invite.tripId, userId: null },
+  const membership = userId
+    ? await db.tripMember.findUnique({ where: { tripId_userId: { tripId: invite.tripId, userId } }, select: { role: true } })
+    : null;
+  const memberCount = await db.tripMember.count({ where: { tripId: invite.tripId } });
+  const unclaimed = !userId ? [] : await db.tripParticipant.findMany({
+    where: { tripId: invite.tripId, userId: null, leftAt: null },
     orderBy: { createdAt: "asc" },
     select: { id: true, name: true },
   });
@@ -205,6 +232,8 @@ export async function getInvitePreview(token: string, userId: string) {
     tripId: invite.tripId,
     role: invite.role,
     alreadyMember: Boolean(membership),
+    memberCount,
+    expiresAt: invite.expiresAt.toISOString(),
     trip: {
       title: invite.trip.title,
       destination: invite.trip.destination,
@@ -225,22 +254,43 @@ export async function acceptInvite(token: string, userId: string, raw: unknown) 
   const tripId = invite.tripId;
   const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true, email: true } });
 
+  try {
+    await joinTrip(tripId, userId, invite.role, participantId, displayName(user));
+  } catch (error) {
+    // A double tap sends two accepts; the loser of the race hits the unique keys. Same outcome.
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) throw error;
+  }
+  await track("accept_invite", { userId, tripId, properties: { role: invite.role } });
+  return { tripId };
+}
+
+async function joinTrip(tripId: string, userId: string, role: TripMemberRole, participantId: string | undefined, name: string) {
   await db.$transaction(async (tx) => {
     const existing = await tx.tripMember.findUnique({ where: { tripId_userId: { tripId, userId } }, select: { role: true } });
     if (!existing) {
-      await tx.tripMember.create({ data: { tripId, userId, role: invite.role } });
-    } else if (ROLE_RANK[invite.role] > ROLE_RANK[existing.role]) {
+      await tx.tripMember.create({ data: { tripId, userId, role: role } });
+    } else if (ROLE_RANK[role] > ROLE_RANK[existing.role]) {
       // A link never lowers what someone already has.
-      await tx.tripMember.update({ where: { tripId_userId: { tripId, userId } }, data: { role: invite.role } });
+      await tx.tripMember.update({ where: { tripId_userId: { tripId, userId } }, data: { role: role } });
     }
     const mine = await tx.tripParticipant.findUnique({ where: { tripId_userId: { tripId, userId } }, select: { id: true } });
-    if (mine) return;
+    if (mine) {
+      // Coming back: the same name (and its history) is theirs again.
+      await tx.tripParticipant.update({ where: { id: mine.id }, data: { leftAt: null } });
+      return;
+    }
     if (participantId) {
-      const { count } = await tx.tripParticipant.updateMany({ where: { id: participantId, tripId, userId: null }, data: { userId } });
+      const { count } = await tx.tripParticipant.updateMany({
+        where: { id: participantId, tripId, userId: null, leftAt: null },
+        data: { userId },
+      });
       if (count === 1) return;
     }
-    await tx.tripParticipant.create({ data: { tripId, userId, name: displayName(user) } });
+    await tx.tripParticipant.create({ data: { tripId, userId, name } });
   });
-  await track("accept_invite", { userId, tripId, properties: { role: invite.role } });
-  return { tripId };
+}
+
+/** Serialises changes that check-then-write per trip (invite links, participant limit). */
+async function lockTrip(tx: Prisma.TransactionClient, tripId: string) {
+  await tx.$queryRaw`SELECT id FROM "Trip" WHERE id = ${tripId} FOR UPDATE`;
 }

@@ -22,7 +22,7 @@ import {
 import { useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api-client";
-import { josa, withJosa } from "@/lib/korean";
+import { withJosa } from "@/lib/korean";
 import { EmptyState } from "@/components/states/empty-state";
 import { ErrorState } from "@/components/states/error-state";
 import { Button } from "@/components/ui/button";
@@ -162,6 +162,8 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
                   transportMode: item.transportMode,
                   estimatedCost: item.estimatedCost,
                   note: item.note,
+                  isFixed: item.isFixed ?? false,
+                  bookingRef: item.bookingRef ?? null,
                   address: item.address ?? null,
                   latitude: item.latitude ?? null,
                   longitude: item.longitude ?? null,
@@ -174,6 +176,7 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
     });
   };
 
+  const blockedTitle = `‘${day?.items.find((i) => preview?.blocked.includes(i.id))?.title ?? ""}’`;
   const showAlert = editable && issues.length > 0 && dismissedIssues !== issueSignature;
 
   return (
@@ -201,9 +204,13 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
                 editable={editable}
                 isLastDay={day.id === data.days.at(-1)?.id}
                 onSave={(city, applyToFollowing) =>
-                  m.updateDay.mutateAsync({ dayId: day.id, city, applyToFollowing }).then(() =>
-                    toast.success(city ? `${applyToFollowing ? "이날부터" : "이날"} ${withJosa(city, "을/를")} 기준으로 날씨와 AI 추천을 맞춰요.` : "여행지 기준으로 되돌렸어요."),
-                  )
+                  m.updateDay.mutateAsync({ dayId: day.id, city, applyToFollowing }).then((r) => {
+                    if (!city) return void toast.success("여행지 기준으로 되돌렸어요.");
+                    if (r.days[0]?.cityLocated === false) {
+                      return void toast.warning(`‘${city}’ 위치를 찾지 못했어요. 이름은 저장했고, 날씨는 ${data.trip.destination} 기준으로 보여 드려요.`);
+                    }
+                    toast.success(`${applyToFollowing ? "이날부터" : "이날"} ${withJosa(city, "을/를")} 기준으로 날씨와 AI 추천을 맞춰요.`);
+                  })
                 }
               />
             </div>
@@ -232,24 +239,22 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
               <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-[oklch(0.55_0.13_65)]" aria-hidden />
               {preview.maxDelay > 0
                 ? `현재 일정이 ${formatDelay(preview.maxDelay)} 밀렸어요.`
-                : preview.blocked.length > 0
-                  ? "예약한 시간과 겹치는 일정이 있어요."
-                  : "자정을 넘기는 일정이 있어요."}
+                : preview.changes.length > 0
+                  ? "예약 시간 전에 끝나지 않는 일정이 있어요."
+                  : preview.blocked.length > 0
+                    ? "예약한 시간과 겹치는 일정이 있어요."
+                    : "자정을 넘기는 일정이 있어요."}
             </p>
             <p className="mt-1 pl-6 text-sm text-muted-foreground">
-              {preview.maxDelay > 0
-                ? `이후 일정 ${preview.changes.length}개를 이동시간에 맞춰 자동으로 조정할까요?`
-                : "일정을 줄이거나 다른 날로 옮겨 주세요."}
-              {preview.blocked.length > 0
-                ? ` ${day.items
-                    .filter((i) => preview.blocked.includes(i.id))
-                    .map((i) => `‘${i.title}’`)
-                    .join(", ")}${josa(day.items.find((i) => preview.blocked.includes(i.id))?.title ?? "", "은/는")} 고정이라 옮기지 않아요. 앞 일정을 줄여 주세요.`
-                : ""}
-              {preview.overflow.length > 0 && preview.maxDelay > 0 ? " 조정하면 일부 일정이 자정을 넘겨요." : ""}
+              {preview.changes.length > 0
+                ? reflowQuestion(preview.changes)
+                : preview.blocked.length > 0
+                  ? `${withJosa(blockedTitle, "은/는")} 예약이라 그대로 둬요. 바로 앞 일정을 줄이거나 다른 날로 옮겨 주세요.`
+                  : "일정을 줄이거나 다른 날로 옮겨 주세요."}
+              {preview.overflow.length > 0 && preview.changes.length > 0 ? " 조정하면 일부 일정이 자정을 넘겨요." : ""}
             </p>
             <div className="mt-3 flex flex-wrap gap-2 pl-6">
-              {preview.maxDelay > 0 ? (
+              {preview.changes.length > 0 ? (
                 <Button
                   size="sm"
                   onClick={() =>
@@ -264,7 +269,7 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
                 </Button>
               ) : null}
               <Button size="sm" variant="outline" onClick={() => setDismissedIssues(issueSignature)}>
-                직접 수정
+                닫기
               </Button>
             </div>
           </div>
@@ -381,6 +386,15 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
 
     </div>
   );
+}
+
+/** "이후 일정 2개를 옮기고, 1개는 예약 전에 끝나게 줄일까요?" */
+function reflowQuestion(changes: { from: number; to: number; durationTo?: number }[]) {
+  const moved = changes.filter((c) => c.to !== c.from).length;
+  const shortened = changes.filter((c) => c.durationTo !== undefined).length;
+  const parts = [moved ? `일정 ${moved}개를 이동시간에 맞춰 옮기고` : null, shortened ? `${shortened}개는 예약 전에 끝나게 줄일까요?` : null].filter(Boolean);
+  if (!shortened) return `이후 일정 ${moved}개를 이동시간에 맞춰 자동으로 조정할까요?`;
+  return moved ? parts.join(", ") : `일정 ${shortened}개를 예약 전에 끝나게 줄일까요?`;
 }
 
 const FIELD_LABELS: Record<string, string> = {

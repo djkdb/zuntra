@@ -8,7 +8,7 @@ import { authConfig } from "@/server/auth/config";
  */
 const { auth } = NextAuth(authConfig);
 
-const PROTECTED_PREFIXES = ["/dashboard", "/trips", "/settings", "/onboarding", "/admin", "/join"];
+const PROTECTED_PREFIXES = ["/dashboard", "/trips", "/settings", "/onboarding", "/admin"];
 const AUTH_PAGES = ["/login", "/signup"];
 
 export default auth((request) => {
@@ -29,5 +29,5 @@ export default auth((request) => {
 });
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/trips/:path*", "/settings/:path*", "/onboarding/:path*", "/admin/:path*", "/join/:path*", "/login", "/signup"],
+  matcher: ["/dashboard/:path*", "/trips/:path*", "/settings/:path*", "/onboarding/:path*", "/admin/:path*", "/login", "/signup"],
 };

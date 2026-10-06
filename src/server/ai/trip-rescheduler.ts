@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { fromDbDate, nowMinuteInTimeZone, todayInTimeZone } from "@/lib/dates";
-import { minuteFromTime, reflowDay } from "@/lib/schedule";
+import { analyzeDay, minuteFromTime, reflowDay } from "@/lib/schedule";
 import { track } from "@/server/analytics/track";
 import { db } from "@/server/db";
 import { AppError } from "@/server/errors";
@@ -140,7 +140,15 @@ export async function proposeReschedule(tripId: string, userId: string, raw: unk
     });
   }
 
-  return { dayId: day.id, summary: changes.length ? proposal.summary : "지금 일정은 무리 없이 진행할 수 있어요.", changes };
+  // Say so when the result still doesn't work, rather than "all fine" next to an overlap warning.
+  const remaining = analyzeDay(safe);
+  const summary =
+    remaining.length > 0
+      ? `${changes.length ? `${proposal.summary} ` : ""}그래도 겹치는 일정이 남아요. 예약 앞 일정을 직접 줄이거나 빼 주세요.`
+      : changes.length
+        ? proposal.summary
+        : "지금 일정은 무리 없이 진행할 수 있어요.";
+  return { dayId: day.id, summary, changes };
 }
 
 export async function applyReschedule(tripId: string, userId: string, raw: unknown) {

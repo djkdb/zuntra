@@ -197,6 +197,8 @@ export async function updateTrip(tripId: string, userId: string, rawPatch: Updat
         currency: "지출이 있는 여행은 통화를 바꿀 수 없어요. 다른 통화로 쓴 돈은 지출을 기록할 때 통화를 골라 주세요.",
       });
     }
+    // A new destination means the cached forecast is for the wrong place.
+    if (patch.destination && patch.destination !== current.destination) await tx.weatherSnapshot.deleteMany({ where: { tripId } });
     await tx.trip.update({
       where: { id: tripId },
       data: {

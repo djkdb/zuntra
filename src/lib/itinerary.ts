@@ -36,6 +36,8 @@ export interface DayView {
   notes: string | null;
   /** Base city for the day, when it differs from the trip destination. */
   city?: string | null;
+  /** False when the city could not be found on the map (weather falls back to the destination). */
+  cityLocated?: boolean;
   items: ItineraryItemView[];
 }
 

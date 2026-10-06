@@ -41,7 +41,7 @@ export function FlightDialog({
             {arrival ? "도착 항공편" : "귀국 항공편"}
           </DialogTitle>
           <DialogDescription>
-            DAY {day.dayNumber} · 현지 시간으로 적어 주세요. {arrival ? "착륙 후 입국 심사 시간까지" : "출발 2시간 전부터 공항 일정으로"} 고정해 두고, AI는
+            DAY {day.dayNumber} · 항공권에 적힌 그 공항 시간(현지 시간) 그대로 적어 주세요. {arrival ? "착륙 후 입국 심사 시간까지" : "출발 2시간 전부터 공항 일정으로"} 고정해 두고, AI는
             그 시간을 피해서 일정을 짜요.
           </DialogDescription>
         </DialogHeader>
@@ -50,7 +50,8 @@ export function FlightDialog({
           noValidate
           onSubmit={async (e) => {
             e.preventDefault();
-            const fd = new FormData(e.currentTarget);
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             setErrors({});
             try {
               await addFlight.mutateAsync({
@@ -64,20 +65,23 @@ export function FlightDialog({
               toast.success(arrival ? "도착 항공편을 넣었어요." : "귀국 항공편을 넣었어요.");
               onOpenChange(false);
             } catch (error) {
-              if (error instanceof ApiError && error.fields) setErrors(error.fields);
+              if (error instanceof ApiError && error.fields) {
+                setErrors(error.fields);
+                requestAnimationFrame(() => form.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+              }
             }
           }}
         >
           <div className="grid grid-cols-2 gap-3">
-            <Field label="편명" error={errors.flightNumber}>
-              {(p) => <Input {...p} name="flightNumber" maxLength={12} placeholder="예: KE723" autoCapitalize="characters" required autoFocus />}
+            <Field label="편명" optional error={errors.flightNumber}>
+              {(p) => <Input {...p} name="flightNumber" maxLength={12} placeholder="예: KE723" autoCapitalize="characters" autoFocus />}
             </Field>
             <Field label={arrival ? "도착 시간(현지)" : "출발 시간(현지)"} error={errors.time}>
               {(p) => <Input {...p} type="time" name="time" step={300} required />}
             </Field>
           </div>
           <Field label={arrival ? "도착 공항" : "출발 공항"} optional error={errors.airport}>
-            {(p) => <Input {...p} name="airport" maxLength={40} placeholder="예: 간사이공항" />}
+            {(p) => <Input {...p} name="airport" maxLength={40} placeholder="항공권에 적힌 공항 (예: 나리타, NRT)" />}
           </Field>
           <Field label={arrival ? "출발지" : "도착지"} optional error={errors.otherEnd} hint="메모에 함께 적어 둬요.">
             {(p) => <Input {...p} name="otherEnd" maxLength={60} placeholder={arrival ? "예: 인천 09:05" : "예: 인천"} />}
@@ -88,7 +92,7 @@ export function FlightDialog({
             </Button>
             <Button type="submit" disabled={addFlight.isPending}>
               {addFlight.isPending ? <Loader2Icon className="animate-spin" data-icon="inline-start" aria-hidden /> : null}
-              넣기
+              추가
             </Button>
           </DialogFooter>
         </form>

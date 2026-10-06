@@ -140,19 +140,25 @@ export function ItemDialog({ open, onOpenChange, mode, dayLabel, currency, initi
             </Field>
           </div>
           <div className="rounded-lg border p-3">
-            <label className="flex cursor-pointer items-start gap-2.5">
+            <div className="flex items-start gap-2.5">
               <input
+                id="is-fixed"
                 type="checkbox"
                 name="isFixed"
+                aria-describedby="is-fixed-hint"
                 checked={fixed}
                 onChange={(e) => setFixed(e.target.checked)}
                 className="mt-0.5 size-4 accent-primary"
               />
               <span>
-                <span className="block text-sm font-medium">예약한 시간이에요</span>
-                <span className="block text-xs text-muted-foreground">항공편·식당·공연처럼 바꿀 수 없는 시간이면 체크하세요. 자동 조정과 AI가 이 일정은 옮기지 않아요.</span>
+                <label htmlFor="is-fixed" className="block cursor-pointer text-sm font-medium">
+                  예약한 시간이에요
+                </label>
+                <span id="is-fixed-hint" className="block text-xs text-muted-foreground">
+                  항공편·식당·공연처럼 바꿀 수 없는 시간이면 체크하세요. 자동 조정과 AI가 이 일정은 옮기지 않아요.
+                </span>
               </span>
-            </label>
+            </div>
             {fixed ? (
               <div className="mt-3">
                 <Field label="예약 번호" optional error={errors.bookingRef}>

@@ -15,7 +15,7 @@ const budgetAmount = z
       ctx.addIssue({ code: "custom", message: "예산은 0 이상의 숫자로 입력해 주세요." });
       return z.NEVER;
     }
-    if (n > 10_000_000_000) {
+    if (n > 9_999_999_999) {
       ctx.addIssue({ code: "custom", message: "예산이 너무 커요." });
       return z.NEVER;
     }

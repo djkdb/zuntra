@@ -78,7 +78,42 @@ describe("fixed bookings", () => {
       { id: "b", startMinute: 700, durationMinutes: 60, travelMinutesFromPrev: 10 },
     ]);
     expect(r.items.find((i) => i.id === "flight")!.startMinute).toBe(690);
-    expect(r.blocked).toEqual(["flight"]);
-    expect(r.changes).toEqual([{ id: "b", from: 700, to: 760 }]);
+    // The stop before the flight ends in time for it; the one after moves past it.
+    expect(r.changes).toEqual([
+      { id: "a", from: 600, to: 600, durationTo: 60 },
+      { id: "b", from: 700, to: 760 },
+    ]);
+    expect(r.blocked).toEqual([]);
+  });
+});
+
+describe("reflow around bookings", () => {
+  it("moves a stop that would run into a booking to after it", async () => {
+    const { reflowDay } = await import("@/lib/schedule");
+    const r = reflowDay([
+      { id: "asakusa", startMinute: 540, durationMinutes: 120, travelMinutesFromPrev: null },
+      { id: "ueno", startMinute: 600, durationMinutes: 60, travelMinutesFromPrev: 15 },
+      { id: "sushi", startMinute: 660, durationMinutes: 60, travelMinutesFromPrev: 15, isFixed: true },
+      { id: "akiba", startMinute: 690, durationMinutes: 60, travelMinutesFromPrev: 15 },
+    ]);
+    const at = Object.fromEntries(r.items.map((i) => [i.id, i.startMinute]));
+    // 우에노 can't start before 11:15 and still make 스시 at 11:00 → after it.
+    expect(at).toEqual({ asakusa: 540, ueno: 735, sushi: 660, akiba: 810 });
+    // 아사쿠사 is cut to finish before 스시 (15 min to get there).
+    expect(r.items.find((i) => i.id === "asakusa")!.durationMinutes).toBe(105);
+    expect(r.blocked).toEqual([]);
+  });
+});
+
+describe("overrunning into a booking", () => {
+  it("shortens the stop before a booking instead of moving it", async () => {
+    const { reflowDay } = await import("@/lib/schedule");
+    const r = reflowDay([
+      { id: "usj", startMinute: 510, durationMinutes: 360, travelMinutesFromPrev: null, isFixed: true },
+      { id: "shopping", startMinute: 990, durationMinutes: 180, travelMinutesFromPrev: 30 },
+      { id: "sushi", startMinute: 1140, durationMinutes: 90, travelMinutesFromPrev: 20, isFixed: true },
+    ]);
+    expect(r.changes).toEqual([{ id: "shopping", from: 990, to: 990, durationTo: 130 }]);
+    expect(r.blocked).toEqual([]);
   });
 });

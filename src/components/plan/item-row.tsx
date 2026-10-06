@@ -101,21 +101,27 @@ export function ItemRow({
           </span>
           <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted-foreground">
             <span>{CATEGORY_LABELS[item.category]}</span>
-            {item.isFixed && !editable ? <span className="inline-flex items-center gap-0.5 font-medium text-primary"><LockIcon className="size-3" aria-hidden />예약</span> : null}
-            {item.bookingRef ? <span className="font-mono">#{item.bookingRef}</span> : null}
             {item.durationMinutes > 0 ? <span>{formatDuration(item.durationMinutes)}</span> : null}
+            {item.isFixed ? (
+              <span className="inline-flex items-center gap-0.5 font-medium text-primary">
+                {!editable ? <LockIcon className="size-3" aria-hidden /> : null}
+                예약 시간 고정
+                {/* Flights already carry the number in their title. */}
+                {item.bookingRef && !item.title.includes(item.bookingRef) ? <span className="font-mono font-normal">· {item.bookingRef}</span> : null}
+              </span>
+            ) : null}
             {item.estimatedCost ? <span>{formatMoney(item.estimatedCost, currency)}</span> : null}
             {item.address ? (
-              <span className="inline-flex max-w-full items-center gap-0.5 truncate">
-                <MapPinIcon className="size-3" aria-hidden />
-                {item.address}
+              <span className="inline-flex max-w-full min-w-0 items-center gap-0.5">
+                <MapPinIcon className="size-3 shrink-0" aria-hidden />
+                <span className="truncate">{item.address}</span>
               </span>
             ) : null}
           </span>
           {item.note ? <span className="mt-1 block truncate text-xs text-foreground/70">{item.note}</span> : null}
           {conflictMinutes ? (
             <span className="mt-1 block text-xs font-medium text-[oklch(0.5_0.12_60)] dark:text-warning">
-              이전 일정과 {conflictMinutes}분 겹쳐요
+              앞 일정과 {formatDuration(conflictMinutes)} 겹쳐요
             </span>
           ) : null}
         </button>

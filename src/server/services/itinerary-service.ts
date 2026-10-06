@@ -64,6 +64,7 @@ async function loadDay(tx: Tx | typeof db, dayId: string): Promise<DayView> {
     title: day.title,
     notes: day.notes,
     city: day.city,
+    cityLocated: day.city ? day.cityLat !== null : undefined,
     items: day.items.map(toItemView),
   };
 }
@@ -113,6 +114,7 @@ export async function getItinerary(tripId: string, userId: string) {
         title: d.title,
         notes: d.notes,
         city: d.city,
+        cityLocated: d.city ? d.cityLat !== null : undefined,
         items: d.items.map(toItemView),
       }),
     ),
@@ -244,6 +246,8 @@ export async function updateItem(tripId: string, userId: string, itemId: string,
   const patch = parseOrThrow(updateItemSchema, raw);
 
   const day = await db.$transaction(async (tx) => {
+    // Row lock: two saves of the same version must not both pass the check below.
+    if (patch.expectedUpdatedAt) await tx.$queryRaw`SELECT id FROM "ItineraryItem" WHERE id = ${itemId} FOR UPDATE`;
     const item = await findTripItem(tx, tripId, itemId);
     // The editor sends the version it opened; a different one means someone saved in between.
     if (patch.expectedUpdatedAt && patch.expectedUpdatedAt !== item.updatedAt.toISOString()) {
@@ -340,7 +344,7 @@ export async function moveItem(tripId: string, userId: string, raw: unknown) {
     const target = await tx.itineraryItem.findMany({
       where: { dayId: input.toDayId },
       orderBy: { position: "asc" },
-      select: { id: true, startMinute: true, durationMinutes: true, travelMinutesFromPrev: true },
+      select: { id: true, startMinute: true, durationMinutes: true, travelMinutesFromPrev: true, isFixed: true },
     });
     const list = sourceDayId === input.toDayId ? target : [...target, { ...item, id: item.id }];
     const moved = moveWithinDay(list, item.id, input.toIndex);
@@ -380,10 +384,12 @@ export async function reflowItineraryDay(tripId: string, userId: string, dayId: 
     await findTripDay(tx, tripId, dayId);
     const day = await loadDay(tx, dayId);
     const fromIndex = input.fromItemId ? Math.max(day.items.findIndex((i) => i.id === input.fromItemId), 0) : 0;
-    const { changes, maxDelay, overflow, blocked } = reflow(day.items, fromIndex);
+    const { changes, maxDelay, overflow, blocked, items } = reflow(day.items, fromIndex);
     for (const change of changes) {
-      await tx.itineraryItem.update({ where: { id: change.id }, data: { startMinute: change.to } });
+      await tx.itineraryItem.update({ where: { id: change.id }, data: { startMinute: change.to, durationMinutes: change.durationTo } });
     }
+    // A stop pushed past a booking now comes after it.
+    if (changes.length > 0) await renumber(tx, [...items].sort((a, b) => a.startMinute - b.startMinute).map((i) => i.id));
     return { day: await loadDay(tx, dayId), changes, maxDelay, overflow, blocked };
   });
   await track("edit_itinerary", { userId, tripId, properties: { action: "reflow", moved: result.changes.length } });
@@ -430,9 +436,14 @@ export async function addFlight(tripId: string, userId: string, raw: unknown) {
   const [hh, mm] = input.time.split(":").map(Number) as [number, number];
   const minute = hh * 60 + mm;
   const arrival = input.direction === "arrival";
-  const start = arrival ? minute : Math.max(minute - CHECK_IN_MINUTES, 0);
-  const duration = arrival ? Math.min(ARRIVAL_MINUTES, 1440 - minute) : minute - start;
-  if (duration <= 0) throw new AppError("VALIDATION", "시간을 확인해 주세요.", { time: "자정 직후 출발편은 전날 일정으로 넣어 주세요." });
+  if (!arrival && minute < CHECK_IN_MINUTES) {
+    // Check-in would start the evening before; that belongs on the previous day.
+    throw new AppError("VALIDATION", "시간을 확인해 주세요.", {
+      time: "새벽 2시 전 출발편은 공항 도착이 전날 밤이에요. 전날 일정에 ‘일정 추가’로 넣어 주세요.",
+    });
+  }
+  const start = arrival ? minute : minute - CHECK_IN_MINUTES;
+  const duration = arrival ? Math.min(ARRIVAL_MINUTES, 1440 - minute) : CHECK_IN_MINUTES;
   const airport = input.airport ?? "공항";
   const note = arrival
     ? `${input.otherEnd ? `${input.otherEnd} 출발 · ` : ""}${input.time} 도착. 입국 심사와 짐 찾기 시간이에요.`
@@ -444,7 +455,7 @@ export async function addFlight(tripId: string, userId: string, raw: unknown) {
     await tx.itineraryItem.create({
       data: {
         dayId: input.dayId,
-        title: arrival ? `${airport} 도착 · ${input.flightNumber}` : `${airport} 출국 수속 · ${input.flightNumber}`,
+        title: `${airport} ${arrival ? "도착" : "출국 수속"}${input.flightNumber ? ` · ${input.flightNumber}` : ""}`,
         category: "AIRPORT",
         position: 0,
         startMinute: start,

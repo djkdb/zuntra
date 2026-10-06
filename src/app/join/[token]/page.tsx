@@ -5,16 +5,20 @@ import { Logo } from "@/components/brand/logo";
 import { JoinTrip } from "@/components/members/join-trip";
 import { Button } from "@/components/ui/button";
 import { formatDateRange } from "@/lib/dates";
-import { requireOnboardedUser } from "@/server/auth/session";
+import { getCurrentUser } from "@/server/auth/session";
 import { getInvitePreview } from "@/server/services/member-service";
 
 export const metadata: Metadata = { title: "여행 초대", robots: { index: false } };
 
 export default async function JoinPage(props: PageProps<"/join/[token]">) {
   const { token } = await props.params;
-  const user = await requireOnboardedUser(`/join/${token}`);
-  const preview = await getInvitePreview(token, user.id);
+  const here = `/join/${token}`;
+  // Signed-out visitors see the invite first; signing up or in brings them back here.
+  const user = await getCurrentUser();
+  if (user && !user.onboardedAt) redirect(`/onboarding?next=${encodeURIComponent(here)}`);
+  const preview = await getInvitePreview(token, user?.id ?? null);
   if (preview.state === "ok" && preview.alreadyMember) redirect(`/trips/${preview.tripId}`);
+  const back = encodeURIComponent(here);
 
   return (
     <main id="main" className="mx-auto w-full max-w-lg px-5 py-8 sm:py-14">
@@ -31,7 +35,22 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
               ? "참여하면 일정·경비·준비물을 함께 고치고 기록할 수 있어요."
               : "참여하면 일정과 경비를 볼 수 있어요. 고치는 건 여행을 만든 사람이 권한을 바꿔 줘야 해요."}
           </p>
-          <JoinTrip token={token} unclaimed={preview.unclaimed} />
+          <p className="mt-3 text-sm text-muted-foreground">
+            지금 {preview.memberCount}명이 함께하고 있어요 · {new Date(preview.expiresAt).getMonth() + 1}월 {new Date(preview.expiresAt).getDate()}일까지 쓸 수 있는 링크예요.
+          </p>
+          {user ? (
+            <JoinTrip token={token} unclaimed={preview.unclaimed} myName={user.name} />
+          ) : (
+            <div className="mt-6 space-y-3">
+              <Button asChild size="lg" className="w-full">
+                <Link href={`/signup?callbackUrl=${back}`}>처음이에요 · 가입하고 참여하기</Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="w-full">
+                <Link href={`/login?callbackUrl=${back}`}>이미 계정이 있어요 · 로그인</Link>
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">가입은 1분이면 끝나고, 끝나면 이 여행으로 바로 들어가요.</p>
+            </div>
+          )}
         </section>
       ) : (
         <section className="mt-10">

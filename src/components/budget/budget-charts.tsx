@@ -67,7 +67,7 @@ export function BudgetMeter({ summary }: { summary: BudgetSummaryView }) {
       ) : null}
       <dl className="mt-5 grid grid-cols-2 gap-4 border-t pt-4 text-sm">
         <div>
-          <dt className="text-muted-foreground">1인당</dt>
+          <dt className="text-muted-foreground">1인당 평균</dt>
           <dd className="mt-0.5 text-lg font-semibold">{formatMoney(perPerson, currency)}</dd>
         </div>
         <div>

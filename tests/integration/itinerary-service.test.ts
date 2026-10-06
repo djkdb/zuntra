@@ -197,3 +197,18 @@ describe("per-day city", () => {
     expect((await getItinerary(id, user.id)).days[4]!.city ?? null).toBeNull();
   });
 });
+
+describe("optimistic locking under concurrency", () => {
+  it("lets only one of several simultaneous saves of the same version through", async () => {
+    const { addItem, updateItem } = await import("@/server/services/itinerary-service");
+    const user = await createUser();
+    const { id } = await createTestTrip(user.id);
+    const dayId = (await db.day.findFirstOrThrow({ where: { tripId: id, dayNumber: 1 } })).id;
+    const { days } = await addItem(id, user.id, { dayId, title: "미술관", category: "CULTURE", startMinute: 600, durationMinutes: 60 });
+    const item = days[0]!.items[0]!;
+    const results = await Promise.allSettled(
+      ["A", "B", "C"].map((t) => updateItem(id, user.id, item.id, { title: t, expectedUpdatedAt: item.updatedAt })),
+    );
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+  });
+});

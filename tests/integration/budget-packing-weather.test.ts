@@ -185,7 +185,8 @@ describe("splitting costs", () => {
 
     const taxi = data.expenses.find((e) => e.title === "택시")!;
     data = await updateExpense(tripId, owner.id, taxi.id, { splitWith: [] });
-    expect(data.expenses.find((e) => e.id === taxi.id)!.splitWith).toEqual([]);
+    // "Everyone" is stored as the people on the trip at that moment.
+    expect(data.expenses.find((e) => e.id === taxi.id)!.splitWith.sort()).toEqual(people.map((p) => p.id).sort());
     expect(data.settlement!.transfers[0]!.amount).toBe(85000);
 
     await expectAppError(addExpense(tripId, owner.id, { title: "x", category: "FOOD", amount: 1000, date: "2026-11-03", paidById: "nope" }), "VALIDATION");

@@ -49,6 +49,19 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
             href: `${base}/plan`,
             done: totalItems > 0 && emptyDays === 0,
           },
+          ...(trip.travelerCount > 1 && trip.role === "OWNER"
+            ? [
+                {
+                  label: "일행 초대하기",
+                  hint:
+                    trip.memberCount > 1
+                      ? `${trip.memberCount}명이 함께하고 있어요.`
+                      : "링크를 카톡으로 보내면 일정과 경비를 같이 볼 수 있어요.",
+                  href: `${base}/members`,
+                  done: trip.memberCount > 1,
+                },
+              ]
+            : []),
           {
             label: "예산 정하기",
             hint: "항공·숙소를 빼고 현지에서 쓸 돈을 정해 두면 사용률을 알려 드려요.",
@@ -146,7 +159,7 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
           </ol>
         </section>
 
-        {todayData.weather ? <WeatherStrip days={todayData.weather.days} stale={todayData.weather.stale} today={today} /> : null}
+        {todayData.weather ? <WeatherStrip days={todayData.weather.days} destination={trip.destination} stale={todayData.weather.stale} today={today} /> : null}
       </div>
 
       <aside aria-labelledby="trip-info" className="space-y-5">

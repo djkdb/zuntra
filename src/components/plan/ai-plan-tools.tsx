@@ -77,11 +77,13 @@ export function GeneratePlanDialog({
       disabled: !hasEmptyDays,
     },
     { value: "day", label: `${day.dayNumber}일차만 새로 만들기`, description: "이 날의 일정을 AI 일정으로 바꿔요." },
-    { value: "replace_all", label: "전체 다시 만들기", description: "모든 날의 일정을 새로 만들어요. 기존 일정은 사라져요." },
+    { value: "replace_all", label: "전체 다시 만들기", description: "모든 날의 일정을 새로 만들어요. 예약한 일정만 그대로 두고 나머지는 바뀌어요." },
   ];
 
   // What this run would replace. Hand-made plans should never vanish without saying so.
-  const replaced = mode === "day" ? day.items.length : mode === "replace_all" ? totalItems : 0;
+  // Bookings are never replaced, so they don't count.
+  const replaced = mode === "day" ? day.items.filter((i) => !i.isFixed).length : mode === "replace_all" ? totalItems : 0;
+  const keptBookings = mode === "day" ? day.items.filter((i) => i.isFixed).length : 0;
 
   return (
     <Dialog open={open} onOpenChange={(next) => !generate.isPending && onOpenChange(next)}>
@@ -134,7 +136,7 @@ export function GeneratePlanDialog({
             </fieldset>
             {replaced > 0 ? (
               <p role="note" className="rounded-lg border border-warning/50 bg-warning/10 px-3 py-2.5 text-sm">
-                지금 있는 일정 {replaced}개가 AI 일정으로 바뀌어요. 직접 넣은 일정도 포함돼요.
+                지금 있는 일정 {replaced}개가 AI 일정으로 바뀌어요. 직접 넣은 일정도 포함돼요.{keptBookings > 0 ? ` 예약한 일정 ${keptBookings}개는 그대로 둬요.` : ""}
               </p>
             ) : null}
             <Field label="AI에게 바라는 점" optional hint="예: 맛집과 카페를 좋아하고 너무 빡빡한 일정은 싫어.">

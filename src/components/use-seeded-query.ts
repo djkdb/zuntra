@@ -15,8 +15,11 @@ export function useSeededQuery<T>({
   queryKey,
   queryFn,
   initialData,
+  staleTime,
 }: {
   queryKey: QueryKey;
+  /** Override the default freshness, e.g. 0 for data other people change (who joined). */
+  staleTime?: number;
   queryFn: (ctx: { signal: AbortSignal }) => Promise<T>;
   initialData?: T;
 }) {
@@ -24,7 +27,7 @@ export function useSeededQuery<T>({
   const [mountedAt] = useState(() => Date.now());
   const seeded = useRef<T | undefined>(undefined);
   const [hydrating, setHydrating] = useState(initialData !== undefined);
-  const query = useQuery({ queryKey, queryFn, initialData });
+  const query = useQuery({ queryKey, queryFn, initialData, ...(staleTime !== undefined ? { staleTime } : {}) });
 
   useEffect(() => {
     if (initialData === undefined || seeded.current === initialData) return;

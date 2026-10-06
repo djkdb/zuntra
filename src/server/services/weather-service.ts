@@ -18,6 +18,7 @@ export async function getTripWeather(tripId: string, userId: string) {
     where: { id: tripId },
     select: {
       timezone: true,
+      destination: true,
       startDate: true,
       endDate: true,
       days: {
@@ -108,7 +109,8 @@ export async function getTripWeather(tripId: string, userId: string) {
       available: Boolean(s),
       condition: s?.condition ?? "unknown",
       label: s ? weatherLabel(s.condition) : "예보 전",
-      place: d.city,
+      // Only a city we could locate has its own forecast; otherwise it is the destination's.
+      place: d.city && d.cityLat !== null ? d.city : null,
       tempMax: s?.tempMaxC ?? null,
       tempMin: s?.tempMinC ?? null,
       precipitation: s?.precipitationProbability ?? null,
@@ -131,7 +133,7 @@ export async function getTripWeather(tripId: string, userId: string) {
     });
   }
 
-  return { provider: provider.name, stale, today, days, suggestions };
+  return { provider: provider.name, stale, today, destination: trip.destination, days, suggestions };
 }
 
 export type TripWeather = Awaited<ReturnType<typeof getTripWeather>>;

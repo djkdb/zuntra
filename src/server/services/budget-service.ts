@@ -82,7 +82,8 @@ export async function getBudget(tripId: string, userId: string) {
     spent,
     remaining: total !== null ? total - spent : null,
     usedPct: total ? Math.round((spent / total) * 1000) / 10 : null,
-    perPerson: Math.round(spent / Math.max(trip.travelerCount, 1)),
+    // Average per head; with cost-sharing names set up, over those people rather than the headcount.
+    perPerson: Math.round(spent / Math.max(participants.length >= 2 ? participants.filter((p) => !p.left).length : trip.travelerCount, 1)),
     byCategory: EXPENSE_CATEGORIES.map((category) => ({
       category,
       amount: byCategoryMap[category] ?? 0,
@@ -111,7 +112,7 @@ export async function getBudget(tripId: string, userId: string) {
     trip: { startDate, endDate, timezone: trip.timezone, today, localCurrency: localCurrencyFor(guessTimeZone(trip.destination) ?? trip.timezone) },
     summary,
     expenses,
-    participants: participants.map((p) => ({ id: p.id, name: p.name, isMe: p.userId === userId })),
+    participants: participants.map((p) => ({ id: p.id, name: p.name, isMe: p.userId === userId, left: p.left })),
     settlement: participants.length >= 2 ? computeSettlement(participants, expenses, trip.currency) : null,
   };
 }
@@ -123,7 +124,12 @@ async function splitData(tripId: string, input: { paidById?: string | null; spli
     const found = await db.tripParticipant.count({ where: { tripId, id: { in: ids } } });
     if (found !== ids.length) throw new AppError("VALIDATION", "함께하는 사람 목록이 바뀌었어요. 새로고침 후 다시 골라 주세요.");
   }
-  return { splitWith: input.splitWith ? [...new Set(input.splitWith)] : undefined };
+  if (input.splitWith === undefined) return { splitWith: undefined };
+  if (input.splitWith.length > 0) return { splitWith: [...new Set(input.splitWith)] };
+  // "Everyone" means the people on the trip right now. It is stored as that list, so someone who
+  // joins later is not charged for earlier costs, and someone who left is not charged for new ones.
+  const active = await db.tripParticipant.findMany({ where: { tripId, leftAt: null }, select: { id: true } });
+  return { splitWith: active.map((p) => p.id) };
 }
 
 async function myParticipantId(tripId: string, userId: string) {
@@ -134,17 +140,22 @@ async function myParticipantId(tripId: string, userId: string) {
 
 export type BudgetData = Awaited<ReturnType<typeof getBudget>>;
 
+/** Largest amount the money columns hold (Decimal(12,2)). */
+const MAX_AMOUNT = 9_999_999_999.99;
+
 /** Amount in the trip currency (+ what was paid) for an expense entered in any currency. */
 function inTripCurrency(amount: number, currency: string | undefined, fxRate: number | undefined, tripCurrency: string) {
   if (!currency || currency === tripCurrency) {
     // Round the way the currency is written: ₩0.4 is not an expense.
     const rounded = roundForCurrency(amount, tripCurrency);
     if (rounded <= 0) throw new AppError("VALIDATION", "금액을 확인해 주세요.", { amount: "금액은 0보다 커야 해요." });
+    if (rounded > MAX_AMOUNT) throw new AppError("VALIDATION", "금액을 확인해 주세요.", { amount: "금액이 너무 커요." });
     return { amount: rounded, originalAmount: null, originalCurrency: null, fxRate: null };
   }
   const rate = fxRate ?? referenceRate(currency, tripCurrency);
   const converted = convertCurrency(amount, currency, tripCurrency, rate);
   if (converted <= 0) throw new AppError("VALIDATION", "금액을 확인해 주세요.", { amount: "환산한 금액이 0이에요. 금액이나 환율을 확인해 주세요." });
+  if (converted > MAX_AMOUNT) throw new AppError("VALIDATION", "금액을 확인해 주세요.", { amount: "환산한 금액이 너무 커요. 금액이나 환율을 확인해 주세요." });
   return { amount: converted, originalAmount: amount, originalCurrency: currency, fxRate: rate };
 }
 
@@ -193,8 +204,8 @@ export async function addExpense(tripId: string, userId: string, raw: unknown) {
     if (!item) throw notFound("일정");
   }
   const day = await dayForDate(tripId, input.date);
-  const { splitWith } = await splitData(tripId, input);
   const paidById = input.paidById !== undefined ? input.paidById : await myParticipantId(tripId, userId);
+  const { splitWith } = paidById ? await splitData(tripId, { ...input, splitWith: input.splitWith ?? [] }) : { splitWith: undefined };
   await db.expense.create({
     data: {
       tripId,

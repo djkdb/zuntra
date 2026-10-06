@@ -10,6 +10,7 @@ import {
   revokeInvite,
   updateMemberRole,
 } from "@/server/services/member-service";
+import { addExpense, getBudget } from "@/server/services/budget-service";
 import { getTrip } from "@/server/services/trip-service";
 import { expectAppError } from "../helpers/assert";
 import { createTestTrip, createUser, db, resetDb } from "../helpers/db";
@@ -89,7 +90,7 @@ describe("leaving and removal", () => {
     expect(await removeMember(tripId, friend.id, friend.id)).toBeNull();
     await expectAppError(getTrip(tripId, friend.id), "NOT_FOUND");
     const { participants } = await getMembers(tripId, owner.id);
-    expect(participants.find((p) => p.name === "민수")?.userId).toBeNull();
+    expect(participants.find((p) => p.name === "민수")).toMatchObject({ userId: friend.id, left: true });
     await expectAppError(removeMember(tripId, owner.id, owner.id), "VALIDATION");
   });
 
@@ -100,5 +101,50 @@ describe("leaving and removal", () => {
     const mine = list.find((p) => p.userId === owner.id)!;
     await expectAppError(removeParticipant(tripId, owner.id, mine.id), "VALIDATION");
     expect((await removeParticipant(tripId, owner.id, seoyeon.id)).map((p) => p.name)).toEqual(["지민"]);
+  });
+});
+
+describe("round-3 regressions", () => {
+  it("never charges someone for costs from before they joined or after they left", async () => {
+    const { owner, friend, tripId } = await setup();
+    await addExpense(tripId, owner.id, { title: "숙소", category: "LODGING", amount: 100000, date: "2026-11-03" });
+    const { invites } = await createInvite(tripId, owner.id, { role: "EDITOR" });
+    await acceptInvite(invites[0]!.token, friend.id, {});
+    let budget = await getBudget(tripId, owner.id);
+    expect(budget.settlement!.transfers).toEqual([]); // the 숙소 stays the owner's alone
+
+    await addExpense(tripId, owner.id, { title: "저녁", category: "FOOD", amount: 30000, date: "2026-11-03" });
+    await removeMember(tripId, friend.id, friend.id);
+    await addExpense(tripId, owner.id, { title: "택시", category: "TRANSPORT", amount: 20000, date: "2026-11-04" });
+    budget = await getBudget(tripId, owner.id);
+    const minsu = budget.participants.find((p) => p.name === "민수")!;
+    expect(minsu.left).toBe(true);
+    expect(budget.settlement!.people.find((p) => p.id === minsu.id)!.share).toBe(15000);
+
+    // Coming back re-links the same name instead of creating a second 민수.
+    const again = (await createInvite(tripId, owner.id, { role: "EDITOR" })).invites[0]!;
+    await acceptInvite(again.token, friend.id, {});
+    const after = await getMembers(tripId, owner.id);
+    expect(after.participants.filter((p) => p.name === "민수")).toHaveLength(1);
+    expect(after.participants.find((p) => p.name === "민수")!.left).toBe(false);
+  });
+
+  it("removing someone retires the links they hold", async () => {
+    const { owner, friend, tripId } = await setup();
+    const { invites } = await createInvite(tripId, owner.id, { role: "VIEWER" });
+    await acceptInvite(invites[0]!.token, friend.id, {});
+    await removeMember(tripId, owner.id, friend.id);
+    await expectAppError(acceptInvite(invites[0]!.token, friend.id, {}), "VALIDATION");
+  });
+
+  it("handles a double-tapped accept and two simultaneous new links", async () => {
+    const { owner, friend, tripId } = await setup();
+    const { invites } = await createInvite(tripId, owner.id, { role: "EDITOR" });
+    const results = await Promise.allSettled([1, 2, 3, 4].map(() => acceptInvite(invites[0]!.token, friend.id, {})));
+    expect(results.every((r) => r.status === "fulfilled")).toBe(true);
+    expect(await db.tripParticipant.count({ where: { tripId, userId: friend.id } })).toBe(1);
+
+    await Promise.all([createInvite(tripId, owner.id, { role: "EDITOR" }), createInvite(tripId, owner.id, { role: "EDITOR" })]);
+    expect(await db.tripInvite.count({ where: { tripId, role: "EDITOR", revokedAt: null } })).toBe(1);
   });
 });

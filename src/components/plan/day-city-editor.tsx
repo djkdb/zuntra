@@ -25,8 +25,9 @@ export function DayCityEditor({
   onSave: (city: string | null, applyToFollowing: boolean) => Promise<unknown>;
 }) {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(city ?? "");
-  const [following, setFollowing] = useState(!isLastDay);
+  const [draft, setDraft] = useState(city ?? destination);
+  // Off by default: overwriting later days should be a deliberate choice.
+  const [following, setFollowing] = useState(false);
   const [pending, setPending] = useState(false);
   const label = city ?? destination;
 
@@ -49,7 +50,7 @@ export function DayCityEditor({
       <button
         type="button"
         onClick={() => {
-          setDraft(city ?? "");
+          setDraft(city ?? destination);
           setOpen(true);
         }}
         className="inline-flex min-h-8 items-center gap-1 rounded-md px-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -68,7 +69,9 @@ export function DayCityEditor({
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              void save(draft.trim() || null);
+              const value = draft.trim();
+              // Typing the destination itself means "no separate city".
+              void save(value && (city || value !== destination) ? value : null);
             }}
           >
             <div className="space-y-1.5">
@@ -89,7 +92,7 @@ export function DayCityEditor({
               ) : (
                 <span />
               )}
-              <Button type="submit" disabled={pending || !draft.trim()}>
+              <Button type="submit" disabled={pending}>
                 {pending ? <Loader2Icon className="animate-spin" data-icon="inline-start" aria-hidden /> : null}
                 저장
               </Button>

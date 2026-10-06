@@ -97,7 +97,10 @@ export function mockCompanion({ ctx, message }: MockCompanionInput): CompanionRe
   // confirm details locally: the mock has no live transit or exchange-rate data.
   const city = findCity(ctx.trip.destination);
   if (/공항.*(시내|숙소|호텔|가|이동)|(시내|숙소).*공항/.test(text)) {
-    const airport = city?.airport?.name ?? "공항";
+    // The airport they named ("나리타에서…"), else the arrival flight they entered, else the city's main one.
+    const named = /([가-힣A-Za-z]{2,10})\s*공항/.exec(text)?.[1];
+    const flight = ctx.items.find((i) => i.category === "AIRPORT")?.title.split(" ")[0];
+    const airport = named ? `${named}공항` : (flight ?? city?.airport?.name ?? "공항");
     return {
       message: `‘${airport}’에서 시내까지는 보통 공항철도나 리무진 버스로 1시간 안팎이에요. 짐이 많거나 밤늦게 도착하면 택시가 편하지만 비싸요. 노선과 요금은 도착 후 공항 안내 데스크에서 한 번 더 확인해 주세요.`,
       quickReplies: ["환전은 얼마나 해야 해?", "교통패스 필요해?"],

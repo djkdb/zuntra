@@ -23,11 +23,14 @@ import { focusAfterRemoval } from "@/lib/focus";
 import { cn } from "@/lib/utils";
 import type { MembersData } from "@/server/services/member-service";
 
-const ROLE_LABEL = { OWNER: "만든 사람", EDITOR: "함께 편집", VIEWER: "보기만" } as const;
+const ROLE_LABEL = { OWNER: "만든 사람", EDITOR: "편집 가능", VIEWER: "보기 전용" } as const;
 const INVITE_ROLES = [
-  { role: "EDITOR", title: "함께 편집하는 링크", hint: "일정·경비·준비물을 같이 고쳐요. 일행에게 보내세요." },
+  { role: "EDITOR", title: "같이 편집하는 링크", hint: "일정·경비·준비물을 같이 고쳐요. 일행에게 보내세요." },
   { role: "VIEWER", title: "보기만 하는 링크", hint: "가족처럼 일정만 확인하면 되는 사람에게 보내세요." },
 ] as const;
+
+/** After a re-render swaps controls (link made/revoked, edit field closed), focus the new one. */
+const focusById = (id: string) => requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById(id)?.focus()));
 
 const expiryLabel = (iso: string) => {
   const d = new Date(iso);
@@ -42,6 +45,8 @@ export function MembersClient({ tripId, initialData, travelerCount }: { tripId: 
     queryKey: key,
     queryFn: ({ signal }) => apiFetch<MembersData>(`/api/trips/${tripId}/members`, { signal }),
     initialData,
+    // Others join and leave from their own devices; check on every visit.
+    staleTime: 0,
   });
   const isOwner = data.myRole === "OWNER";
   const canEdit = data.myRole !== "VIEWER";
@@ -89,13 +94,14 @@ export function MembersClient({ tripId, initialData, travelerCount }: { tripId: 
   return (
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
       <div className="min-w-0 space-y-8">
+        {isOwner ? (
         <section aria-labelledby="invite-title" className="space-y-3">
           <div>
             <h2 id="invite-title" className="text-base font-semibold">
               초대 링크
             </h2>
             <p className="text-sm text-muted-foreground">
-              {isOwner ? "링크를 받은 사람은 로그인(또는 가입)하면 바로 이 여행에 들어와요. 링크는 14일 동안 쓸 수 있어요." : "초대 링크는 여행을 만든 사람이 만들 수 있어요."}
+              링크를 카톡으로 보내면, 받은 사람이 가입하거나 로그인하자마자 이 여행에 들어와요. 링크는 14일 동안 쓸 수 있어요.
             </p>
           </div>
           {isOwner ? (
@@ -110,7 +116,13 @@ export function MembersClient({ tripId, initialData, travelerCount }: { tripId: 
                         <p className="text-xs text-muted-foreground">{live ? `${hint} · ${expiryLabel(live.expiresAt)}` : hint}</p>
                       </div>
                       {!live ? (
-                        <Button size="sm" variant="outline" onClick={() => invite.mutate(role)} disabled={invite.isPending}>
+                        <Button
+                          id={`make-${role}`}
+                          size="sm"
+                          variant="outline"
+                          onClick={() => invite.mutate(role, { onSuccess: () => focusById(`copy-${role}`) })}
+                          disabled={invite.isPending}
+                        >
                           <LinkIcon data-icon="inline-start" aria-hidden />
                           링크 만들기
                         </Button>
@@ -119,8 +131,9 @@ export function MembersClient({ tripId, initialData, travelerCount }: { tripId: 
                     {live ? (
                       <InviteLink
                         path={`/join/${live.token}`}
-                        onRenew={() => invite.mutate(role)}
-                        onRevoke={() => revoke.mutate(live.id)}
+                        copyId={`copy-${role}`}
+                        onRenew={() => invite.mutate(role, { onSuccess: () => focusById(`copy-${role}`) })}
+                        onRevoke={() => revoke.mutate(live.id, { onSuccess: () => focusById(`make-${role}`) })}
                         busy={invite.isPending || revoke.isPending}
                       />
                     ) : null}
@@ -130,10 +143,11 @@ export function MembersClient({ tripId, initialData, travelerCount }: { tripId: 
             </ul>
           ) : null}
         </section>
+        ) : null}
 
         <section aria-labelledby="members-title" className="space-y-3">
           <h2 id="members-title" className="text-base font-semibold">
-            여행 멤버 <span className="font-normal text-muted-foreground">{data.members.length}명</span>
+            앱으로 함께하는 사람 <span className="font-normal text-muted-foreground">{data.members.length}명</span>
           </h2>
           <ul className="divide-y rounded-lg border bg-card">
             {data.members.map((m) => (
@@ -149,7 +163,11 @@ export function MembersClient({ tripId, initialData, travelerCount }: { tripId: 
                     {m.name}
                     {m.isMe ? <span className="ml-1.5 text-xs font-normal text-muted-foreground">나</span> : null}
                   </span>
-                  {m.email ? <span className="block truncate text-xs text-muted-foreground">{m.email}</span> : null}
+                  {m.email || m.accountName !== m.name ? (
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {[m.accountName !== m.name ? `계정 이름 ${m.accountName}` : null, m.email].filter(Boolean).join(" · ")}
+                    </span>
+                  ) : null}
                 </span>
                 {isOwner && m.role !== "OWNER" ? (
                   <div className="flex items-center gap-1.5">
@@ -157,7 +175,8 @@ export function MembersClient({ tripId, initialData, travelerCount }: { tripId: 
                       aria-label={`${m.name} 권한`}
                       value={m.role}
                       onChange={(e) => changeRole.mutate({ userId: m.userId, role: e.target.value })}
-                      disabled={changeRole.isPending}
+                      // Not disabled while saving: that would throw keyboard focus out of the select.
+                      aria-busy={changeRole.isPending}
                       className="h-9 w-32 md:h-8"
                     >
                       <option value="EDITOR">{ROLE_LABEL.EDITOR}</option>
@@ -167,7 +186,7 @@ export function MembersClient({ tripId, initialData, travelerCount }: { tripId: 
                       variant="ghost"
                       size="icon-sm"
                       className="max-sm:size-10"
-                      aria-label={`${m.name} 내보내기`}
+                      aria-label={`${m.name} 여행에서 빼기`}
                       onClick={() => setConfirmRemove({ userId: m.userId, name: m.name, me: false })}
                     >
                       <UserMinusIcon />
@@ -193,7 +212,7 @@ export function MembersClient({ tripId, initialData, travelerCount }: { tripId: 
       <AlertDialog open={confirmRemove !== null} onOpenChange={(o) => !o && setConfirmRemove(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{confirmRemove?.me ? "이 여행에서 나갈까요?" : `${confirmRemove?.name}님을 내보낼까요?`}</AlertDialogTitle>
+            <AlertDialogTitle>{confirmRemove?.me ? "이 여행에서 나갈까요?" : `${confirmRemove?.name}님을 여행에서 뺄까요?`}</AlertDialogTitle>
             <AlertDialogDescription>
               {confirmRemove?.me
                 ? "다시 들어오려면 새 초대 링크가 필요해요. 내가 낸 경비 기록은 정산에 그대로 남아요."
@@ -209,7 +228,7 @@ export function MembersClient({ tripId, initialData, travelerCount }: { tripId: 
                 setConfirmRemove(null);
               }}
             >
-              {confirmRemove?.me ? "나가기" : "내보내기"}
+              {confirmRemove?.me ? "나가기" : "빼기"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -220,7 +239,7 @@ export function MembersClient({ tripId, initialData, travelerCount }: { tripId: 
 
 const noSubscribe = () => () => {};
 
-function InviteLink({ path, onRenew, onRevoke, busy }: { path: string; onRenew: () => void; onRevoke: () => void; busy: boolean }) {
+function InviteLink({ path, copyId, onRenew, onRevoke, busy }: { path: string; copyId: string; onRenew: () => void; onRevoke: () => void; busy: boolean }) {
   const [copied, setCopied] = useState(false);
   // Browser-only values, read so that hydration still matches the server's render.
   const origin = useSyncExternalStore(noSubscribe, () => window.location.origin, () => "");
@@ -240,7 +259,7 @@ function InviteLink({ path, onRenew, onRevoke, busy }: { path: string; onRenew: 
     <div className="space-y-2">
       <div className="flex gap-2">
         <Input readOnly value={url} aria-label="초대 링크" onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs md:text-xs" />
-        <Button variant="outline" onClick={copy} className="shrink-0">
+        <Button id={copyId} variant="outline" onClick={copy} className="shrink-0">
           {copied ? <CheckIcon data-icon="inline-start" aria-hidden /> : <CopyIcon data-icon="inline-start" aria-hidden />}
           {copied ? "복사됨" : "복사"}
         </Button>
@@ -301,9 +320,10 @@ function Participants({
   const rename = useMutation({
     mutationFn: ({ id, name: n }: { id: string; name: string }) =>
       apiFetch<MembersData["participants"]>(`/api/trips/${tripId}/participants/${id}`, { method: "PATCH", body: { name: n } }),
-    onSuccess: (next) => {
+    onSuccess: (next, { id }) => {
       save(next);
       setEditing(null);
+      focusById(`rename-${id}`);
     },
     onError,
   });
@@ -344,7 +364,11 @@ function Participants({
                   value={editing.name}
                   maxLength={20}
                   onChange={(e) => setEditing({ id: p.id, name: e.target.value })}
-                  onKeyDown={(e) => e.key === "Escape" && setEditing(null)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Escape") return;
+                    setEditing(null);
+                    focusById(`rename-${p.id}`);
+                  }}
                   className="h-9 md:h-8"
                 />
                 <Button type="submit" size="sm" disabled={rename.isPending}>
@@ -355,11 +379,15 @@ function Participants({
               <>
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {p.name}
-                  {p.userId ? <span className="ml-1.5 text-xs text-muted-foreground">앱 사용</span> : null}
+                  {p.left ? (
+                    <span className="ml-1.5 text-xs text-muted-foreground">나감 · 지난 경비만 정산</span>
+                  ) : p.userId ? (
+                    <span className="ml-1.5 text-xs text-muted-foreground">TripMate 사용 중</span>
+                  ) : null}
                 </span>
                 {canEdit ? (
                   <>
-                    <Button variant="ghost" size="icon-sm" className="max-sm:size-10" aria-label={`${p.name} 이름 바꾸기`} onClick={() => setEditing({ id: p.id, name: p.name })}>
+                    <Button id={`rename-${p.id}`} variant="ghost" size="icon-sm" className="max-sm:size-10" aria-label={`${p.name} 이름 바꾸기`} onClick={() => setEditing({ id: p.id, name: p.name })}>
                       <PencilIcon />
                     </Button>
                     {!p.userId ? (
@@ -372,7 +400,8 @@ function Participants({
                         disabled={remove.isPending}
                         onClick={(e) => {
                           const restoreFocus = focusAfterRemoval(e.currentTarget.closest("li"));
-                          remove.mutate(p.id, { onSuccess: restoreFocus });
+                          const button = e.currentTarget;
+                          remove.mutate(p.id, { onSuccess: restoreFocus, onError: () => requestAnimationFrame(() => button.focus()) });
                         }}
                       >
                         <Trash2Icon />

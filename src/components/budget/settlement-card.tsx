@@ -10,8 +10,22 @@ import type { Settlement } from "@/lib/settlement";
 import { cn } from "@/lib/utils";
 
 /** N빵: what each person paid vs. their share, and the fewest transfers that even it out. */
-export function SettlementCard({ tripId, settlement, currency }: { tripId: string; settlement: Settlement; currency: string }) {
+export function SettlementCard({
+  tripId,
+  settlement,
+  currency,
+  meId,
+}: {
+  tripId: string;
+  settlement: Settlement;
+  currency: string;
+  meId?: string;
+}) {
   const name = (id: string) => settlement.people.find((p) => p.id === id)?.name ?? "?";
+  // What concerns me comes first.
+  const transfers = [...settlement.transfers].sort(
+    (a, b) => Number(b.fromId === meId || b.toId === meId) - Number(a.fromId === meId || a.toId === meId),
+  );
   const money = (n: number) => formatMoney(n, currency);
   const text = [
     "[여행 정산]",
@@ -55,45 +69,71 @@ export function SettlementCard({ tripId, settlement, currency }: { tripId: strin
         </div>
       </div>
 
-      {settlement.transfers.length > 0 ? (
-        <ul className="space-y-2 px-5 pb-4">
-          {settlement.transfers.map((t) => (
-            <li key={`${t.fromId}-${t.toId}`} className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-sm">
-              <span className="font-medium">{name(t.fromId)}</span>
-              <ArrowRightIcon className="size-4 text-muted-foreground" aria-label="에게" />
-              <span className="font-medium">{name(t.toId)}</span>
-              <span className="ml-auto font-semibold tabular-nums">{money(t.amount)}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <div className="grid border-t lg:grid-cols-2 lg:items-start">
+        {settlement.transfers.length > 0 ? (
+          <ul className="space-y-2 p-5 lg:border-r">
+            {transfers.map((t) => {
+              const mine = t.fromId === meId || t.toId === meId;
+              return (
+                <li
+                  key={`${t.fromId}-${t.toId}`}
+                  className={cn("flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm", mine ? "bg-primary/10" : "bg-muted/60")}
+                >
+                  {/* Read as one sentence so the direction of the money is unambiguous. */}
+                  <span className="sr-only">{`${t.fromId === meId ? "내가" : withJosa(name(t.fromId), "이/가")} ${t.toId === meId ? "나" : name(t.toId)}에게 ${money(t.amount)} 보내기`}</span>
+                  <span aria-hidden className="font-medium">{t.fromId === meId ? "나" : name(t.fromId)}</span>
+                  <ArrowRightIcon className="size-4 text-muted-foreground" aria-hidden />
+                  <span aria-hidden className="font-medium">{t.toId === meId ? "나" : name(t.toId)}</span>
+                  <span aria-hidden className="ml-auto font-semibold tabular-nums">{money(t.amount)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
 
-      <table className="w-full border-t text-sm">
-        <caption className="sr-only">사람별 낸 돈과 부담할 몫</caption>
-        <thead>
-          <tr className="text-xs text-muted-foreground">
-            <th scope="col" className="px-5 py-2 text-left font-medium">이름</th>
-            <th scope="col" className="px-2 py-2 text-right font-medium">낸 돈</th>
-            <th scope="col" className="px-2 py-2 text-right font-medium">몫</th>
-            <th scope="col" className="px-5 py-2 text-right font-medium">차액</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {settlement.people.map((p) => (
-            <tr key={p.id}>
-              <th scope="row" className="px-5 py-2.5 text-left font-medium">{p.name}</th>
-              <td className="px-2 py-2.5 text-right tabular-nums">{money(p.paid)}</td>
-              <td className="px-2 py-2.5 text-right tabular-nums">{money(p.share)}</td>
-              <td className={cn("px-5 py-2.5 text-right font-medium tabular-nums", p.balance > 0 ? "text-success" : p.balance < 0 ? "text-destructive" : "text-muted-foreground")}>
-                {p.balance > 0 ? `+${money(p.balance)}` : p.balance < 0 ? `−${money(-p.balance)}` : "0"}
-              </td>
+        <table className="w-full text-sm max-lg:border-t">
+          <caption className="sr-only">사람별 낸 돈과 부담할 몫</caption>
+          <thead>
+            <tr className="text-xs text-muted-foreground">
+              <th scope="col" className="px-5 py-2 text-left font-medium">
+                이름
+              </th>
+              <th scope="col" className="px-2 py-2 text-right font-medium">
+                낸 돈
+              </th>
+              <th scope="col" className="px-2 py-2 text-right font-medium">
+                몫
+              </th>
+              <th scope="col" className="px-5 py-2 text-right font-medium">
+                차액
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y">
+            {settlement.people.map((p) => (
+              <tr key={p.id} className={cn(p.id === meId && "bg-primary/5")}>
+                <th scope="row" className="px-5 py-2.5 text-left font-medium">
+                  {p.name}
+                  {p.id === meId ? <span className="ml-1.5 text-xs font-normal text-muted-foreground">나</span> : null}
+                </th>
+                <td className="px-2 py-2.5 text-right tabular-nums">{money(p.paid)}</td>
+                <td className="px-2 py-2.5 text-right tabular-nums">{money(p.share)}</td>
+                <td
+                  className={cn(
+                    "px-5 py-2.5 text-right font-medium tabular-nums",
+                    p.balance > 0 ? "text-success" : p.balance < 0 ? "text-destructive" : "text-muted-foreground",
+                  )}
+                >
+                  {p.balance > 0 ? `+${money(p.balance)}` : p.balance < 0 ? `−${money(-p.balance)}` : "0"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {settlement.unassigned.count > 0 ? (
         <p className="border-t px-5 py-3 text-xs text-muted-foreground">
-          낸 사람이 없는 지출 {settlement.unassigned.count}건({withJosa(money(settlement.unassigned.amount), "은/는")})은 정산에서 뺐어요.
+          {`개인 지출 ${settlement.unassigned.count}건(${money(settlement.unassigned.amount)})은 나누지 않았어요.`}
         </p>
       ) : null}
     </section>

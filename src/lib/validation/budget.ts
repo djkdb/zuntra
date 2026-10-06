@@ -6,7 +6,7 @@ import { isoDate, numeric } from "./common";
 // Rounded to cents before the range check, so 0.001 is "too small" rather than a ₩0 expense.
 const amount = numeric("금액을 입력해 주세요.")
   .transform((n) => Math.round(n * 100) / 100)
-  .pipe(z.number().positive("금액은 0보다 커야 해요.").max(10_000_000_000, "금액이 너무 커요."));
+  .pipe(z.number().positive("금액은 0보다 커야 해요.").max(9_999_999_999.99, "금액이 너무 커요."));
 
 export const expenseSchema = z.object({
   title: z.string().trim().min(1, "내용을 입력해 주세요.").max(80, "80자 이내로 입력해 주세요."),
@@ -20,20 +20,33 @@ export const expenseSchema = z.object({
   /** Trip-currency units for one unit of `currency`. Defaults to a reference rate. */
   // A plain decimal: "9,1" must not become 91 (thousand separators make no sense in a rate).
   fxRate: z
-    .union([z.number(), z.string().trim().regex(/^\d+(\.\d+)?$/, "환율은 숫자와 소수점(.)으로 입력해 주세요. 예: 9.1").transform(Number)], "환율을 입력해 주세요.")
+    .union([z.number(), z.string()], "환율을 입력해 주세요.")
+    .transform((v, ctx) => {
+      if (typeof v === "number") return v;
+      if (!/^\d+(\.\d+)?$/.test(v.trim())) {
+        ctx.addIssue({ code: "custom", message: "환율은 숫자와 소수점(.)으로 입력해 주세요. 예: 9.1" });
+        return z.NEVER;
+      }
+      return Number(v.trim());
+    })
     .pipe(z.number().positive("환율은 0보다 커야 해요.").max(1_000_000, "환율을 확인해 주세요."))
     .optional(),
   /** Participant who paid. Omitted on create = the person recording it. */
-  paidById: z.string().max(40).nullable().optional(),
+  paidById: z
+    .string()
+    .max(40)
+    .nullable()
+    .optional()
+    .transform((v) => (v === "" ? null : v)),
   /** Participants who share it; empty = everyone. */
-  splitWith: z.array(z.string().max(40)).max(30).optional(),
+  splitWith: z.array(z.string().min(1).max(40), "나눌 사람을 다시 골라 주세요.").max(30, "나눌 사람은 30명까지 고를 수 있어요.").optional(),
 });
 
 export const expensePatchSchema = expenseSchema.partial();
 
 export const budgetSchema = z.object({
-  totalAmount: numeric("예산을 입력해 주세요.").pipe(z.number().min(0, "예산은 0 이상이어야 해요.").max(10_000_000_000, "금액이 너무 커요.")),
-  allocations: z.partialRecord(z.enum(ExpenseCategory), numeric().pipe(z.number().min(0, "0 이상으로 입력해 주세요.").max(10_000_000_000))).optional(),
+  totalAmount: numeric("예산을 입력해 주세요.").pipe(z.number().min(0, "예산은 0 이상이어야 해요.").max(9_999_999_999, "금액이 너무 커요.")),
+  allocations: z.partialRecord(z.enum(ExpenseCategory), numeric().pipe(z.number().min(0, "0 이상으로 입력해 주세요.").max(9_999_999_999, "금액이 너무 커요."))).optional(),
 });
 
 export type ExpenseInput = z.infer<typeof expenseSchema>;

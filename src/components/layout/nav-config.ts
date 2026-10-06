@@ -2,13 +2,14 @@ import {
   BookHeartIcon,
   CalendarRangeIcon,
   HomeIcon,
+  InfoIcon,
   LuggageIcon,
   MapIcon,
-  type LucideIcon,
   PackageCheckIcon,
   SparklesIcon,
+  UsersIcon,
   WalletIcon,
-  InfoIcon,
+  type LucideIcon,
 } from "lucide-react";
 
 export interface TripNavItem {
@@ -26,6 +27,7 @@ export const TRIP_SECTIONS: TripNavItem[] = [
   { segment: "budget", label: "경비", icon: WalletIcon },
   { segment: "packing", label: "준비물", icon: PackageCheckIcon },
   { segment: "journal", label: "기록", icon: BookHeartIcon },
+  { segment: "members", label: "일행", icon: UsersIcon },
 ];
 
 export const MAIN_NAV = [
