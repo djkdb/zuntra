@@ -30,9 +30,9 @@ export async function requireUser(): Promise<CurrentUser> {
   return user;
 }
 
-export async function requireOnboardedUser(): Promise<CurrentUser> {
+export async function requireOnboardedUser(next?: string): Promise<CurrentUser> {
   const user = await requireUser();
-  if (!user.onboardedAt) redirect("/onboarding");
+  if (!user.onboardedAt) redirect(next ? `/onboarding?next=${encodeURIComponent(next)}` : "/onboarding");
   return user;
 }
 

@@ -5,6 +5,7 @@ import { addExpense, deleteExpense, getBudget, setBudget, updateExpense } from "
 import { addPackingItem, deletePackingItem, generatePacking, getPacking, updatePackingItem } from "@/server/services/packing-service";
 import { getTripWeather } from "@/server/services/weather-service";
 import { addItem } from "@/server/services/itinerary-service";
+import { addParticipant } from "@/server/services/member-service";
 import { expectAppError } from "../helpers/assert";
 import { createTestTrip, createUser, db, resetDb } from "../helpers/db";
 
@@ -167,5 +168,26 @@ describe("editing a foreign-currency expense", () => {
     const { id } = await createTestTrip(user.id);
     await expectAppError(addExpense(id, user.id, { title: "x", category: "FOOD", amount: 0.4, date: "2026-11-03" }), "VALIDATION");
     await expectAppError(addExpense(id, user.id, { title: "x", category: "FOOD", amount: 1000, currency: "JPY", fxRate: "9,1", date: "2026-11-03" }), "VALIDATION");
+  });
+});
+
+describe("splitting costs", () => {
+  it("records the payer, splits among chosen people and settles up", async () => {
+    const owner = await createUser({ name: "지민" });
+    const { id: tripId } = await createTestTrip(owner.id, { currency: "KRW" });
+    const people = await addParticipant(tripId, owner.id, { name: "민수" });
+    const minsu = people.find((p) => p.name === "민수")!;
+
+    let data = await addExpense(tripId, owner.id, { title: "숙소", category: "LODGING", amount: 200000, date: "2026-11-03" });
+    expect(data.expenses[0]!.paidById).toBe(people.find((p) => p.userId === owner.id)!.id);
+    data = await addExpense(tripId, owner.id, { title: "택시", category: "TRANSPORT", amount: 30000, date: "2026-11-03", paidById: minsu.id, splitWith: [minsu.id] });
+    expect(data.settlement!.transfers).toEqual([{ fromId: minsu.id, toId: data.expenses.find((e) => e.title === "숙소")!.paidById, amount: 100000 }]);
+
+    const taxi = data.expenses.find((e) => e.title === "택시")!;
+    data = await updateExpense(tripId, owner.id, taxi.id, { splitWith: [] });
+    expect(data.expenses.find((e) => e.id === taxi.id)!.splitWith).toEqual([]);
+    expect(data.settlement!.transfers[0]!.amount).toBe(85000);
+
+    await expectAppError(addExpense(tripId, owner.id, { title: "x", category: "FOOD", amount: 1000, date: "2026-11-03", paidById: "nope" }), "VALIDATION");
   });
 });

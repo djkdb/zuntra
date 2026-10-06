@@ -20,7 +20,7 @@ export function FlashToast({ message }: { message: string }) {
     window.scrollTo({ top: 0 });
     toast.success(message);
     const next = new URLSearchParams(searchParams);
-    for (const key of ["created", "updated", "deleted", "welcome"]) next.delete(key);
+    for (const key of ["created", "updated", "deleted", "welcome", "joined"]) next.delete(key);
     const query = next.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }, [message, pathname, router, searchParams]);

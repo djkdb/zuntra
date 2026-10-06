@@ -91,6 +91,7 @@ export default async function TripOverviewPage(props: PageProps<"/trips/[tripId]
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-8">
       {searchParams.created ? <FlashToast message="여행을 만들었어요!" /> : null}
       {searchParams.updated ? <FlashToast message="여행 정보를 저장했어요." /> : null}
+      {searchParams.joined ? <FlashToast message="여행에 참여했어요. 함께 준비해요!" /> : null}
 
       <div className="min-w-0 space-y-6">
         {/* On phones the guide leads the page (the side column sits far below); mid-trip, today's plan comes first. */}

@@ -103,9 +103,18 @@ export function itineraryToCsv(itinerary: Itinerary): string {
 
 export function expensesToCsv(budget: BudgetData): string {
   const currency = budget.summary.currency;
-  const rows: (string | number | null)[][] = [["날짜", "DAY", "내용", "카테고리", `금액(${currency})`, "낸 금액", "낸 통화", "환율", "메모"]];
+  const group = budget.participants.length >= 2;
+  const name = (id: string) => budget.participants.find((p) => p.id === id)?.name ?? "";
+  const rows: (string | number | null)[][] = [
+    ["날짜", "DAY", "내용", "카테고리", `금액(${currency})`, "낸 금액", "낸 통화", "환율", ...(group ? ["낸 사람", "나눈 사람"] : []), "메모"],
+  ];
   for (const e of [...budget.expenses].sort((a, b) => a.date.localeCompare(b.date))) {
-    rows.push([e.date, e.dayNumber, e.title, EXPENSE_CATEGORY_LABELS[e.category], e.amount, e.originalAmount, e.originalCurrency, e.fxRate, e.note]);
+    const split = group ? [e.paidById ? name(e.paidById) : "정산 제외", e.paidById ? (e.splitWith.length ? e.splitWith.map(name).join(", ") : "모두") : ""] : [];
+    rows.push([e.date, e.dayNumber, e.title, EXPENSE_CATEGORY_LABELS[e.category], e.amount, e.originalAmount, e.originalCurrency, e.fxRate, ...split, e.note]);
+  }
+  if (group && budget.settlement) {
+    rows.push([], ["정산"], ["보내는 사람", "받는 사람", `금액(${currency})`]);
+    for (const t of budget.settlement.transfers) rows.push([name(t.fromId), name(t.toId), t.amount]);
   }
   return csv(rows);
 }

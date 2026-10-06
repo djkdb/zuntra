@@ -31,7 +31,7 @@ export function LoginForm({ callbackUrl, notice }: { callbackUrl?: string; notic
       </SubmitButton>
       <p className="text-center text-sm text-muted-foreground">
         아직 계정이 없나요?{" "}
-        <Link href="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
+        <Link href={callbackUrl && callbackUrl !== "/dashboard" ? `/signup?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/signup"} className="font-medium text-primary underline-offset-4 hover:underline">
           회원가입
         </Link>
       </p>

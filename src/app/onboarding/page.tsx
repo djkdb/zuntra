@@ -2,14 +2,16 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/brand/logo";
 import { OnboardingForm } from "@/components/profile/onboarding-form";
+import { safeRedirectPath } from "@/lib/action-state";
 import { requireUser } from "@/server/auth/session";
 import { getTravelProfile } from "@/server/services/user-service";
 
 export const metadata: Metadata = { title: "여행 프로필 만들기", robots: { index: false } };
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage(props: PageProps<"/onboarding">) {
   const user = await requireUser();
-  if (user.onboardedAt) redirect("/dashboard");
+  const next = safeRedirectPath((await props.searchParams).next, "");
+  if (user.onboardedAt) redirect(next || "/dashboard");
   const profile = await getTravelProfile(user.id);
 
   return (
@@ -21,6 +23,7 @@ export default async function OnboardingPage() {
         AI가 일정을 만들고 여행 중 제안을 할 때 이 정보를 기준으로 삼아요. 언제든 설정에서 바꿀 수 있어요.
       </p>
       <OnboardingForm
+        next={next || undefined}
         defaults={{
           name: user.name,
           styles: profile?.styles,

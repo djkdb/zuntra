@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangleIcon, CheckCircle2Icon, InfoIcon, Loader2Icon, PencilIcon, PlusIcon, SettingsIcon, Trash2Icon, WalletIcon } from "lucide-react";
+import { AlertTriangleIcon, CheckCircle2Icon, CheckIcon, InfoIcon, Loader2Icon, PencilIcon, PlusIcon, SettingsIcon, Trash2Icon, WalletIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Field, FormMessage } from "@/components/forms/field";
@@ -20,6 +20,7 @@ import { focusAfterRemoval } from "@/lib/focus";
 import { cn } from "@/lib/utils";
 import type { BudgetData } from "@/server/services/budget-service";
 import { BudgetMeter, CategoryBars, DailyColumns } from "./budget-charts";
+import { SettlementCard } from "./settlement-card";
 import { useSeededQuery } from "@/components/use-seeded-query";
 
 type ExpenseDialogState = { mode: "create" } | { mode: "edit"; expense: ExpenseView } | null;
@@ -100,6 +101,8 @@ export function BudgetPageClient({ tripId, initialData }: { tripId: string; init
         </div>
       ) : null}
 
+      {data.settlement && expenses.length > 0 ? <SettlementCard tripId={tripId} settlement={data.settlement} currency={summary.currency} /> : null}
+
       <section aria-labelledby="expenses-title" className="space-y-4">
         <h2 id="expenses-title" className="text-lg font-semibold">
           지출 내역 <span className="text-base font-normal text-muted-foreground">{expenses.length}건</span>
@@ -133,7 +136,11 @@ export function BudgetPageClient({ tripId, initialData }: { tripId: string; init
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{e.title}</span>
-                        {e.note ? <span className="block truncate text-xs text-muted-foreground">{e.note}</span> : null}
+                        {data.participants.length >= 2 || e.note ? (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {[data.participants.length >= 2 ? splitLabel(e, data.participants) : null, e.note].filter(Boolean).join(" · ")}
+                          </span>
+                        ) : null}
                       </span>
                       <span className="text-right">
                         <span className="block font-semibold tabular-nums">
@@ -235,6 +242,12 @@ function ExpenseDialog({
   const foreign = currency !== tripCurrency;
   const parsedAmount = parseAmountText(amountText);
   const parsedRate = /^\d+(\.\d+)?$/.test(rateText.trim()) ? Number(rateText) : Number.NaN;
+  const people = data.participants;
+  const me = people.find((x) => x.isMe)?.id ?? "";
+  const [paidBy, setPaidBy] = useState(editing ? (editing.paidById ?? "") : me);
+  const [sharers, setSharers] = useState<string[]>(() =>
+    editing?.splitWith.length ? editing.splitWith : people.map((x) => x.id),
+  );
   const preview = foreign && parsedAmount > 0 && parsedRate > 0 ? convertCurrency(parsedAmount, currency, tripCurrency, parsedRate) : null;
 
   return (
@@ -250,6 +263,10 @@ function ExpenseDialog({
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
+            if (people.length >= 2 && paidBy && sharers.length === 0) {
+              toast.error("나눌 사람을 한 명 이상 골라 주세요.");
+              return;
+            }
             const fd = new FormData(e.currentTarget);
             save.mutate({
               title: fd.get("title"),
@@ -259,6 +276,9 @@ function ExpenseDialog({
               fxRate: foreign ? rateText.trim() : undefined,
               date: fd.get("date"),
               note: fd.get("note") || null,
+              ...(people.length >= 2
+                ? { paidById: paidBy || null, splitWith: sharers.length === people.length ? [] : sharers }
+                : {}),
             });
           }}
         >
@@ -315,6 +335,11 @@ function ExpenseDialog({
               {(p) => <Input {...p} type="date" name="date" defaultValue={editing?.date ?? defaultDate} required />}
             </Field>
           </div>
+          {people.length >= 2 ? (
+            <SplitFields people={people} paidBy={paidBy} onPaidBy={setPaidBy} sharers={sharers} onSharers={setSharers} perPerson={
+              sharers.length > 0 && (preview ?? (foreign ? null : parsedAmount)) ? formatMoney((preview ?? parsedAmount) / sharers.length, tripCurrency) : null
+            } />
+          ) : null}
           <Field label="메모" optional error={fields.note}>
             {(p) => <Input {...p} name="note" maxLength={300} defaultValue={editing?.note ?? ""} />}
           </Field>
@@ -330,6 +355,79 @@ function ExpenseDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function splitLabel(e: ExpenseView, people: BudgetData["participants"]) {
+  if (!e.paidById) return "정산 제외";
+  const payer = people.find((p) => p.id === e.paidById)?.name ?? "?";
+  const n = e.splitWith.length || people.length;
+  return n === people.length ? `${payer} 냄 · 다 같이` : `${payer} 냄 · ${n}명`;
+}
+
+/** "Who paid" and "split with whom" for groups; empty split list on save means everyone. */
+function SplitFields({
+  people,
+  paidBy,
+  onPaidBy,
+  sharers,
+  onSharers,
+  perPerson,
+}: {
+  people: BudgetData["participants"];
+  paidBy: string;
+  onPaidBy: (id: string) => void;
+  sharers: string[];
+  onSharers: (ids: string[]) => void;
+  perPerson: string | null;
+}) {
+  const toggle = (id: string) =>
+    onSharers(sharers.includes(id) ? sharers.filter((x) => x !== id) : people.map((p) => p.id).filter((x) => x === id || sharers.includes(x)));
+  return (
+    <div className="space-y-3 rounded-lg border p-3">
+      <Field label="낸 사람">
+        {(p) => (
+          <NativeSelect {...p} value={paidBy} onChange={(e) => onPaidBy(e.target.value)}>
+            {people.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.isMe ? `${x.name} (나)` : x.name}
+              </option>
+            ))}
+            <option value="">정산에서 빼기</option>
+          </NativeSelect>
+        )}
+      </Field>
+      {paidBy ? (
+        <fieldset>
+          <legend className="text-sm font-medium">
+            나눌 사람
+            <span className="ml-1.5 font-normal text-muted-foreground">
+              {sharers.length === 0 ? "한 명 이상 골라 주세요" : perPerson ? `${sharers.length}명 · 1인 ${perPerson}` : `${sharers.length}명`}
+            </span>
+          </legend>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {people.map((x) => {
+              const on = sharers.includes(x.id);
+              return (
+                <label
+                  key={x.id}
+                  className={cn(
+                    "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-sm has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                    on ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  <input type="checkbox" className="sr-only" checked={on} onChange={() => toggle(x.id)} />
+                  {on ? <CheckIcon className="size-3.5" aria-hidden /> : null}
+                  {x.name}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      ) : (
+        <p className="text-xs text-muted-foreground">공동 경비가 아닌 개인 지출이면 정산에서 빼 두세요.</p>
+      )}
+    </div>
   );
 }
 

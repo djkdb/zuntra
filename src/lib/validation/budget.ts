@@ -23,6 +23,10 @@ export const expenseSchema = z.object({
     .union([z.number(), z.string().trim().regex(/^\d+(\.\d+)?$/, "환율은 숫자와 소수점(.)으로 입력해 주세요. 예: 9.1").transform(Number)], "환율을 입력해 주세요.")
     .pipe(z.number().positive("환율은 0보다 커야 해요.").max(1_000_000, "환율을 확인해 주세요."))
     .optional(),
+  /** Participant who paid. Omitted on create = the person recording it. */
+  paidById: z.string().max(40).nullable().optional(),
+  /** Participants who share it; empty = everyone. */
+  splitWith: z.array(z.string().max(40)).max(30).optional(),
 });
 
 export const expensePatchSchema = expenseSchema.partial();

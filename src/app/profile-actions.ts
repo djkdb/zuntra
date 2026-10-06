@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { FormState } from "@/lib/action-state";
+import { type FormState, safeRedirectPath } from "@/lib/action-state";
 import { fieldErrors, formDataToObject, formValues, invalidFormMessage } from "@/lib/validation/common";
 import { travelProfileSchema } from "@/lib/validation/profile";
 import { requireUser } from "@/server/auth/session";
@@ -20,7 +20,7 @@ export async function completeOnboardingAction(_prev: FormState, formData: FormD
     return { message: invalidFormMessage(fieldErrors(parsed.error)), fields: fieldErrors(parsed.error), values: formValues(formData) };
   }
   await saveTravelProfile(user.id, parsed.data);
-  redirect("/dashboard?welcome=1");
+  redirect(safeRedirectPath(formData.get("next"), "/dashboard?welcome=1"));
 }
 
 export async function updateProfileAction(_prev: FormState, formData: FormData): Promise<FormState> {

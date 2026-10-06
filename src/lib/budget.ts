@@ -33,6 +33,10 @@ export interface ExpenseView {
   date: string;
   dayId: string | null;
   dayNumber: number | null;
+  /** Participant who paid (null = not recorded, left out of the split). */
+  paidById: string | null;
+  /** Participants sharing it; empty = everyone. */
+  splitWith: string[];
 }
 
 export interface Insight {

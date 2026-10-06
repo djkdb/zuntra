@@ -167,8 +167,10 @@ model User {
   accounts        Account[]
   sessions        Session[]
   travelProfile   TravelProfile?
-  ownedTrips      Trip[]           @relation("TripOwner")
+  ownedTrips      Trip[]            @relation("TripOwner")
   memberships     TripMember[]
+  invitesCreated  TripInvite[]
+  participations  TripParticipant[]
   expenses        Expense[]
   journalEntries  JournalEntry[]
   photos          TripPhoto[]
@@ -262,6 +264,8 @@ model Trip {
 
   owner          User              @relation("TripOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members        TripMember[]
+  invites        TripInvite[]
+  participants   TripParticipant[]
   days           Day[]
   places         Place[]
   budget         Budget?
@@ -292,17 +296,67 @@ model TripMember {
   @@index([userId])
 }
 
-model Day {
+/// A shareable link that adds whoever opens it to the trip with `role`.
+model TripInvite {
+  id          String         @id @default(cuid())
+  tripId      String
+  token       String         @unique
+  role        TripMemberRole @default(EDITOR)
+  createdById String?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime       @default(now())
+
+  trip      Trip  @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([tripId])
+}
+
+/// Someone who shares costs on the trip. Linked to an account when they joined; otherwise just a name.
+model TripParticipant {
   id        String   @id @default(cuid())
   tripId    String
-  date      DateTime @db.Date
-  dayNumber Int
-  title     String?
-  /// Set when a person named the day ("교토 · 아라시야마"): AI keeps it and plans around it.
-  titleByUser Boolean @default(false)
-  notes     String?
+  name      String
+  userId    String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  trip   Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user   User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  paid   Expense[]
+  shares ExpenseShare[]
+
+  @@unique([tripId, userId])
+  @@index([tripId])
+}
+
+/// Who an expense is split among. No rows = everyone on the trip.
+model ExpenseShare {
+  expenseId     String
+  participantId String
+
+  expense     Expense         @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  participant TripParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@id([expenseId, participantId])
+  @@index([participantId])
+}
+
+model Day {
+  id          String   @id @default(cuid())
+  tripId      String
+  date        DateTime @db.Date
+  dayNumber   Int
+  title       String?
+  /// Set when a person named the day ("교토 · 아라시야마"): AI keeps it and plans around it.
+  titleByUser Boolean  @default(false)
+  /// Where the traveller is based that day ("교토"); falls back to the trip destination.
+  city        String?
+  cityLat     Float?
+  cityLng     Float?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   trip           Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
   items          ItineraryItem[]
@@ -351,6 +405,9 @@ model ItineraryItem {
   estimatedCost         Decimal?            @db.Decimal(12, 2)
   note                  String?
   status                ItineraryItemStatus @default(PLANNED)
+  /// Booked or otherwise time-bound (flights, reservations): never moved by auto-shift or AI.
+  isFixed               Boolean             @default(false)
+  bookingRef            String?
   source                ContentSource       @default(USER)
   completedAt           DateTime?
   createdAt             DateTime            @default(now())
@@ -379,29 +436,32 @@ model Budget {
 }
 
 model Expense {
-  id              String          @id @default(cuid())
-  tripId          String
-  dayId           String?
-  itineraryItemId String?
-  createdById     String?
-  title           String
-  category        ExpenseCategory
+  id               String          @id @default(cuid())
+  tripId           String
+  dayId            String?
+  itineraryItemId  String?
+  createdById      String?
+  title            String
+  category         ExpenseCategory
   /// In the trip's currency (what budgets and totals add up).
-  amount          Decimal         @db.Decimal(12, 2)
-  currency        String          @db.Char(3)
+  amount           Decimal         @db.Decimal(12, 2)
+  currency         String          @db.Char(3)
   /// What was actually paid when it was in another currency, and the rate used to convert it.
-  originalAmount  Decimal?        @db.Decimal(12, 2)
-  originalCurrency String?        @db.Char(3)
-  fxRate          Decimal?        @db.Decimal(18, 8)
-  note            String?
-  spentAt         DateTime
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  originalAmount   Decimal?        @db.Decimal(12, 2)
+  originalCurrency String?         @db.Char(3)
+  fxRate           Decimal?        @db.Decimal(18, 8)
+  paidById         String?
+  note             String?
+  spentAt          DateTime
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
-  trip          Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  day           Day?           @relation(fields: [dayId], references: [id], onDelete: SetNull)
-  itineraryItem ItineraryItem? @relation(fields: [itineraryItemId], references: [id], onDelete: SetNull)
-  createdBy     User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  trip          Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  day           Day?             @relation(fields: [dayId], references: [id], onDelete: SetNull)
+  itineraryItem ItineraryItem?   @relation(fields: [itineraryItemId], references: [id], onDelete: SetNull)
+  createdBy     User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  paidBy        TripParticipant? @relation(fields: [paidById], references: [id], onDelete: SetNull)
+  shares        ExpenseShare[]
 
   @@index([tripId, spentAt])
 }

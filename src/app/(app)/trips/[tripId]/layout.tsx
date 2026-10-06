@@ -1,4 +1,4 @@
-import { ChevronLeftIcon, MapPinIcon, PencilIcon } from "lucide-react";
+import { ChevronLeftIcon, MapPinIcon, PencilIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { DeleteTripButton } from "@/components/trips/delete-trip-button";
 import { ExportMenu } from "@/components/trips/export-menu";
@@ -40,6 +40,12 @@ export default async function TripLayout(props: LayoutProps<"/trips/[tripId]">) 
           </p>
         </div>
         <div className="flex shrink-0 gap-1.5 sm:gap-2">
+          <Button asChild variant="ghost" size="sm" className="text-muted-foreground max-sm:size-9 max-sm:px-0">
+            <Link href={`/trips/${trip.id}/members`} aria-label={`함께하는 사람 ${trip.memberCount}명`}>
+              <UsersIcon data-icon="inline-start" aria-hidden />
+              <span className="max-sm:sr-only">{trip.memberCount > 1 ? `함께 ${trip.memberCount}` : "초대"}</span>
+            </Link>
+          </Button>
           <ExportMenu tripId={trip.id} />
         {canEdit ? (
           <>

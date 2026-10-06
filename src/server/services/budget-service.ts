@@ -3,6 +3,7 @@ import type { ExpenseCategory, Prisma } from "@/generated/prisma/client";
 import { EXPENSE_CATEGORIES, type BudgetSummaryView, type ExpenseView } from "@/lib/budget";
 import { diffDaysIso, fromDbDate, todayInTimeZone, toDbDate } from "@/lib/dates";
 import { convertCurrency, localCurrencyFor, referenceRate, roundForCurrency } from "@/lib/fx";
+import { computeSettlement } from "@/lib/settlement";
 import { guessTimeZone } from "@/lib/timezone-guess";
 import { budgetSchema, expensePatchSchema, expenseSchema } from "@/lib/validation/budget";
 import { analyzeSpending } from "@/server/ai/trip-analyzer";
@@ -10,9 +11,15 @@ import { track } from "@/server/analytics/track";
 import { db } from "@/server/db";
 import { AppError, notFound } from "@/server/errors";
 import { parseOrThrow } from "@/server/validate";
+import { ensureParticipants, listParticipants } from "./member-service";
 import { assertTripAccess } from "./trip-service";
 
-type ExpenseRow = Prisma.ExpenseGetPayload<{ include: { day: { select: { dayNumber: true } } } }>;
+const expenseInclude = {
+  day: { select: { dayNumber: true } },
+  shares: { select: { participantId: true } },
+} satisfies Prisma.ExpenseInclude;
+
+type ExpenseRow = Prisma.ExpenseGetPayload<{ include: typeof expenseInclude }>;
 
 function toView(e: ExpenseRow): ExpenseView {
   return {
@@ -29,6 +36,8 @@ function toView(e: ExpenseRow): ExpenseView {
     date: fromDbDate(new Date(Date.UTC(e.spentAt.getUTCFullYear(), e.spentAt.getUTCMonth(), e.spentAt.getUTCDate()))),
     dayId: e.dayId,
     dayNumber: e.day?.dayNumber ?? null,
+    paidById: e.paidById,
+    splitWith: e.shares.map((s) => s.participantId),
   };
 }
 
@@ -44,9 +53,10 @@ export async function getBudget(tripId: string, userId: string) {
       budget: true,
       owner: { select: { travelProfile: { select: { budgetLevel: true } } } },
       days: { orderBy: { dayNumber: "asc" }, select: { id: true, dayNumber: true, date: true, items: { select: { estimatedCost: true } } } },
-      expenses: { orderBy: [{ spentAt: "desc" }, { createdAt: "desc" }], include: { day: { select: { dayNumber: true } } } },
+      expenses: { orderBy: [{ spentAt: "desc" }, { createdAt: "desc" }], include: expenseInclude },
     },
   });
+  const participants = await listParticipants(tripId);
 
   const expenses = trip.expenses.map(toView);
   const spent = expenses.reduce((s, e) => s + e.amount, 0);
@@ -101,7 +111,25 @@ export async function getBudget(tripId: string, userId: string) {
     trip: { startDate, endDate, timezone: trip.timezone, today, localCurrency: localCurrencyFor(guessTimeZone(trip.destination) ?? trip.timezone) },
     summary,
     expenses,
+    participants: participants.map((p) => ({ id: p.id, name: p.name, isMe: p.userId === userId })),
+    settlement: participants.length >= 2 ? computeSettlement(participants, expenses, trip.currency) : null,
   };
+}
+
+/** Checks payer/sharer ids belong to the trip; returns the create/replace data for shares. */
+async function splitData(tripId: string, input: { paidById?: string | null; splitWith?: string[] }) {
+  const ids = [...new Set([...(input.paidById ? [input.paidById] : []), ...(input.splitWith ?? [])])];
+  if (ids.length > 0) {
+    const found = await db.tripParticipant.count({ where: { tripId, id: { in: ids } } });
+    if (found !== ids.length) throw new AppError("VALIDATION", "함께하는 사람 목록이 바뀌었어요. 새로고침 후 다시 골라 주세요.");
+  }
+  return { splitWith: input.splitWith ? [...new Set(input.splitWith)] : undefined };
+}
+
+async function myParticipantId(tripId: string, userId: string) {
+  await ensureParticipants(tripId);
+  const mine = await db.tripParticipant.findUnique({ where: { tripId_userId: { tripId, userId } }, select: { id: true } });
+  return mine?.id ?? null;
 }
 
 export type BudgetData = Awaited<ReturnType<typeof getBudget>>;
@@ -165,10 +193,14 @@ export async function addExpense(tripId: string, userId: string, raw: unknown) {
     if (!item) throw notFound("일정");
   }
   const day = await dayForDate(tripId, input.date);
+  const { splitWith } = await splitData(tripId, input);
+  const paidById = input.paidById !== undefined ? input.paidById : await myParticipantId(tripId, userId);
   await db.expense.create({
     data: {
       tripId,
       createdById: userId,
+      paidById,
+      shares: splitWith?.length ? { create: splitWith.map((participantId) => ({ participantId })) } : undefined,
       dayId: day?.id ?? null,
       itineraryItemId: input.itineraryItemId ?? null,
       title: input.title,
@@ -190,9 +222,12 @@ export async function updateExpense(tripId: string, userId: string, expenseId: s
   if (!existing) throw notFound("지출");
   if (input.date) await assertExpenseDate(tripId, input.date);
   const day = input.date ? await dayForDate(tripId, input.date) : undefined;
+  const { splitWith } = await splitData(tripId, input);
   await db.expense.update({
     where: { id: expenseId },
     data: {
+      paidById: input.paidById,
+      shares: splitWith ? { deleteMany: {}, create: splitWith.map((participantId) => ({ participantId })) } : undefined,
       title: input.title,
       category: input.category,
       ...convertedPatch(input, existing),

@@ -1,6 +1,17 @@
 "use client";
 
-import { CalendarRangeIcon, HomeIcon, MapIcon, MenuIcon, NotebookPenIcon, PackageCheckIcon, SettingsIcon, SparklesIcon, WalletIcon } from "lucide-react";
+import {
+  CalendarRangeIcon,
+  HomeIcon,
+  MapIcon,
+  MenuIcon,
+  NotebookPenIcon,
+  PackageCheckIcon,
+  SettingsIcon,
+  SparklesIcon,
+  UsersIcon,
+  WalletIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import Link from "next/link";
@@ -28,7 +39,7 @@ export function BottomNav({ focusTripId }: { focusTripId: string | null }) {
     { href: tripHref("companion"), label: "AI", icon: SparklesIcon, active: pathname.endsWith("/companion"), primary: true },
     { href: tripHref("map"), label: "지도", icon: MapIcon, active: pathname.endsWith("/map") },
   ];
-  const moreActive = pathname.startsWith("/settings") || /\/(budget|packing|journal|report)$/.test(pathname);
+  const moreActive = pathname.startsWith("/settings") || /\/(budget|packing|journal|report|members)$/.test(pathname);
   const [moreOpen, setMoreOpen] = useState(false);
   // The rest of a trip's sections live behind "더보기", next to settings.
   const more = [
@@ -37,6 +48,7 @@ export function BottomNav({ focusTripId }: { focusTripId: string | null }) {
           { href: tripHref("budget"), label: "경비", icon: WalletIcon },
           { href: tripHref("packing"), label: "준비물", icon: PackageCheckIcon },
           { href: tripHref("journal"), label: "기록", icon: NotebookPenIcon },
+          { href: tripHref("members"), label: "함께", icon: UsersIcon },
         ]
       : []),
     { href: "/settings", label: "설정", icon: SettingsIcon },

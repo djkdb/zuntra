@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/forms/submit-button";
 import { Input } from "@/components/ui/input";
 import { initialFormState } from "@/lib/action-state";
 
-export function SignupForm() {
+export function SignupForm({ callbackUrl }: { callbackUrl?: string }) {
   const [state, action] = useActionState(signUpAction, initialFormState);
   const formRef = useRef<HTMLFormElement>(null);
   useFocusFirstError(formRef, state);
@@ -16,6 +16,7 @@ export function SignupForm() {
   return (
     <form ref={formRef} action={action} className="space-y-5" noValidate>
       <FormMessage message={state.message} />
+      <input type="hidden" name="callbackUrl" value={callbackUrl ?? ""} />
       <Field label="이름" error={state.fields?.name}>
         {(props) => <Input {...props} name="name" autoComplete="name" required maxLength={40} autoFocus defaultValue={state.values?.name} />}
       </Field>
@@ -32,7 +33,7 @@ export function SignupForm() {
       </SubmitButton>
       <p className="text-center text-sm text-muted-foreground">
         이미 계정이 있나요?{" "}
-        <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+        <Link href={callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login"} className="font-medium text-primary underline-offset-4 hover:underline">
           로그인
         </Link>
       </p>

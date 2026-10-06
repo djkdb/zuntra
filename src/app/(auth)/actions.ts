@@ -20,6 +20,7 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
   const values = { name: String(formData.get("name") ?? ""), email: String(formData.get("email") ?? "") };
   if (!parsed.success) return { message: invalidFormMessage(fieldErrors(parsed.error)), fields: fieldErrors(parsed.error), values };
 
+  const next = safeRedirectPath(formData.get("callbackUrl"), "");
   const ip = clientIpFrom(await headers());
   const limit = ip ? await signupLimiter.consume(`ip:${ip}`) : { ok: true };
   if (!limit.ok) return { message: "가입 시도가 너무 많아요. 잠시 후 다시 시도해 주세요.", values };
@@ -36,7 +37,8 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
     await signIn("credentials", {
       email: parsed.data.email,
       password: parsed.data.password,
-      redirectTo: "/onboarding",
+      // After the profile step, continue where they were headed (e.g. a trip invite).
+      redirectTo: next ? `/onboarding?next=${encodeURIComponent(next)}` : "/onboarding",
     });
   } catch (error) {
     // The account exists; if automatic sign-in is refused (e.g. rate limited), send them to log in.

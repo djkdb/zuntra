@@ -16,7 +16,9 @@ export type AnalyticsEventName =
   | "complete_itinerary"
   | "add_expense"
   | "create_journal"
-  | "complete_trip";
+  | "complete_trip"
+  | "create_invite"
+  | "accept_invite";
 
 type Primitive = string | number | boolean | null;
 

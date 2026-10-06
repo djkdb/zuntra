@@ -69,6 +69,7 @@ function toTripSummary(row: TripSummaryRow, userId: string) {
     budgetAmount: row.budget ? Number(row.budget.totalAmount) : null,
     dayCount: row._count.days,
     role: row.members.find((m) => m.userId === userId)?.role ?? "VIEWER",
+    memberCount: row.members.length,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -115,6 +116,11 @@ export async function getTrip(tripId: string, userId: string) {
 // ───────────────────────────── Mutations ─────────────────────────────
 
 
+async function ownerName(userId: string) {
+  const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true, email: true } });
+  return user.name?.trim() || user.email.split("@")[0]!;
+}
+
 export async function createTrip(userId: string, rawInput: CreateTripInput | unknown) {
   const input = parseOrThrow(createTripSchema, rawInput);
   const dates = eachDateIso(input.startDate, input.endDate);
@@ -136,6 +142,7 @@ export async function createTrip(userId: string, rawInput: CreateTripInput | unk
       notes: input.notes ?? null,
       currency: input.currency,
       members: { create: { userId, role: TripMemberRole.OWNER } },
+      participants: { create: { userId, name: (await ownerName(userId)) } },
       days: { create: dates.map((date, i) => ({ date: toDbDate(date), dayNumber: i + 1 })) },
       budget:
         input.budgetAmount !== undefined
