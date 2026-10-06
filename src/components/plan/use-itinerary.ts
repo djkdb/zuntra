@@ -107,9 +107,15 @@ export function useItineraryMutations(tripId: string) {
     }),
   );
 
-  const updateDay = useDaysMutation(tripId, ({ dayId, title }: { dayId: string; title: string | null }) =>
-    apiFetch<DaysResult>(`${base}/days/${dayId}`, { method: "PATCH", body: { title } }),
+  const updateDay = useDaysMutation(
+    tripId,
+    ({ dayId, ...patch }: { dayId: string; title?: string | null; city?: string | null; applyToFollowing?: boolean }) =>
+      apiFetch<DaysResult>(`${base}/days/${dayId}`, { method: "PATCH", body: patch }),
   );
 
-  return { addItem, updateItem, deleteItem, moveItem, reflowDay, updateDay };
+  const addFlight = useDaysMutation(tripId, (body: Record<string, unknown>) =>
+    apiFetch<DaysResult>(`${base}/flights`, { method: "POST", body }),
+  );
+
+  return { addItem, updateItem, deleteItem, moveItem, reflowDay, updateDay, addFlight };
 }

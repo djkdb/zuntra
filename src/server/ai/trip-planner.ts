@@ -1,17 +1,18 @@
 import "server-only";
 import { z } from "zod";
 import { diffDaysIso, fromDbDate } from "@/lib/dates";
+import { clashesWithFixed } from "@/lib/schedule";
 import { track } from "@/server/analytics/track";
 import { db } from "@/server/db";
 import { AppError } from "@/server/errors";
-import { estimateMissingTravel, loadDay } from "@/server/services/itinerary-service";
+import { estimateMissingTravel, loadDay, renumber } from "@/server/services/itinerary-service";
 import { assertTripAccess, ensureTripCenter } from "@/server/services/trip-service";
 import { parseOrThrow } from "@/server/validate";
 import { runAI } from "./guard";
 import { validatePlan } from "./plan-validation";
 import { PLANNER_SCHEMA_NAME, plannerInput, plannerSystemPrompt } from "./prompts/planner";
 import { planDraftSchema } from "./schemas/planner";
-import type { PlannerContext } from "./trip-planner-context";
+import type { FixedSlot, PlannerContext } from "./trip-planner-context";
 
 export const generatePlanSchema = z.object({
   mode: z.enum(["fill_empty", "replace_all", "day"]),
@@ -35,13 +36,17 @@ export async function generatePlan(tripId: string, userId: string, raw: unknown)
     include: {
       budget: true,
       owner: { select: { travelProfile: true } },
-      days: { orderBy: { dayNumber: "asc" }, include: { items: { select: { title: true } } } },
+      days: {
+        orderBy: { dayNumber: "asc" },
+        include: { items: { select: { title: true, isFixed: true, category: true, startMinute: true, durationMinutes: true } } },
+      },
       weather: { select: { date: true, precipitationProbability: true } },
     },
   });
 
   let targets = trip.days;
-  if (input.mode === "fill_empty") targets = trip.days.filter((d) => d.items.length === 0);
+  // A day holding only bookings (e.g. the flight) still counts as empty.
+  if (input.mode === "fill_empty") targets = trip.days.filter((d) => d.items.every((i) => i.isFixed));
   if (input.mode === "day") {
     targets = trip.days.filter((d) => d.id === input.dayId);
     if (targets.length === 0) throw new AppError("NOT_FOUND", "날짜를 찾을 수 없어요.");
@@ -80,7 +85,12 @@ export async function generatePlan(tripId: string, userId: string, raw: unknown)
     center,
   };
 
-  const existingTitles = trip.days.filter((d) => !targetIds.has(d.id)).flatMap((d) => d.items.map((i) => i.title));
+  const existingTitles = trip.days.flatMap((d) => d.items.filter((i) => !targetIds.has(d.id) || i.isFixed).map((i) => i.title));
+  const fixedOf = (d: (typeof trip.days)[number]): FixedSlot[] =>
+    d.items
+      .filter((i) => i.isFixed)
+      .map((i) => ({ title: i.title, category: i.category, start: i.startMinute, end: i.startMinute + i.durationMinutes }))
+      .sort((a, b) => a.start - b.start);
   const generated = [];
   const warnings: string[] = [];
   let summary = "";
@@ -98,7 +108,9 @@ export async function generatePlan(tripId: string, userId: string, raw: unknown)
           rainy: rainy.has(date),
           isFirst: d.dayNumber === 1,
           isLast: d.dayNumber === totalDays,
-          hint: d.titleByUser ? d.title : null,
+          // Where they're based that day, plus their own name for it ("교토 · 아라시야마").
+          hint: [d.city, d.titleByUser ? d.title : null].filter(Boolean).join(" · ") || null,
+          fixed: fixedOf(d),
         };
       }),
     };
@@ -114,8 +126,17 @@ export async function generatePlan(tripId: string, userId: string, raw: unknown)
       skipRateLimit: i > 0,
       maxOutputTokens: 6000,
     });
-    const validated = validatePlan(draft, { dayNumbers: chunk.map((d) => d.dayNumber), pace: context.pace, center });
-    generated.push(...validated.days);
+    const centers = new Map(
+      chunk.flatMap((d) => (d.cityLat !== null && d.cityLng !== null ? [[d.dayNumber, { lat: d.cityLat, lng: d.cityLng }] as const] : [])),
+    );
+    const validated = validatePlan(draft, { dayNumbers: chunk.map((d) => d.dayNumber), pace: context.pace, center, centers });
+    // Safety net for whatever the model returns: nothing may collide with a booking.
+    generated.push(
+      ...validated.days.map((day) => {
+        const source = chunk.find((d) => d.dayNumber === day.dayNumber);
+        return source ? { ...day, items: fitAroundFixed(day.items, fixedOf(source), source.dayNumber === 1, source.dayNumber === totalDays) } : day;
+      }),
+    );
     warnings.push(...validated.warnings);
     summary ||= draft.summary;
   }
@@ -143,7 +164,8 @@ export async function generatePlan(tripId: string, userId: string, raw: unknown)
       for (const day of targets) {
         const plan = byNumber.get(day.dayNumber);
         if (!plan || plan.items.length === 0) continue;
-        await tx.itineraryItem.deleteMany({ where: { dayId: day.id } });
+        // Bookings stay; everything else on the day is replaced.
+        await tx.itineraryItem.deleteMany({ where: { dayId: day.id, isFixed: false } });
         // A day the traveller named keeps its name; only AI-made titles are replaced.
         if (!day.titleByUser) await tx.day.update({ where: { id: day.id }, data: { title: plan.title || null } });
         for (const [position, item] of plan.items.entries()) {
@@ -179,6 +201,12 @@ export async function generatePlan(tripId: string, userId: string, raw: unknown)
             },
           });
         }
+        const ordered = await tx.itineraryItem.findMany({
+          where: { dayId: day.id },
+          orderBy: [{ startMinute: "asc" }, { position: "asc" }],
+          select: { id: true },
+        });
+        await renumber(tx, ordered.map((o) => o.id));
         await estimateMissingTravel(tx, day.id);
         changed.push(await loadDay(tx, day.id));
       }
@@ -195,4 +223,28 @@ export async function generatePlan(tripId: string, userId: string, raw: unknown)
     properties: { mode: input.mode, days: days.length, items: days.reduce((n, d) => n + d.items.length, 0) },
   });
   return { days, summary, warnings };
+}
+
+/**
+ * Drops generated stops that collide with a booking. An airport booking on the first day is the
+ * arrival (nothing before it); on the last day it is the departure (nothing after it), and the
+ * planner's own airport stops give way to the real flight.
+ */
+export function fitAroundFixed<T extends { startMinute: number; durationMinutes: number; category: string }>(
+  items: T[],
+  fixed: FixedSlot[],
+  isFirst: boolean,
+  isLast: boolean,
+): T[] {
+  if (fixed.length === 0) return items;
+  const airport = fixed.filter((f) => f.category === "AIRPORT");
+  const arrival = isFirst ? airport[0] : undefined;
+  const departure = isLast ? airport.at(-1) : undefined;
+  return items.filter((i) => {
+    const end = i.startMinute + i.durationMinutes;
+    if (airport.length > 0 && i.category === "AIRPORT") return false;
+    if (arrival && i.startMinute < arrival.end + 30) return false;
+    if (departure && end > departure.start - 45) return false;
+    return !clashesWithFixed(i.startMinute, end, fixed);
+  });
 }

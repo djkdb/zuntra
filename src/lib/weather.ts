@@ -44,6 +44,8 @@ export interface DayWeatherView {
   tempMax: number | null;
   tempMin: number | null;
   precipitation: number | null;
+  /** The day's own city when it differs from the destination. */
+  place?: string | null;
 }
 
 export interface RainSuggestion {

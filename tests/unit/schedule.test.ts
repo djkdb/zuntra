@@ -68,3 +68,17 @@ describe("geo", () => {
     expect(estimateTravelMinutes(shibuya, harajuku, "WALK")).toBeGreaterThan(20);
   });
 });
+
+describe("fixed bookings", () => {
+  it("reflow pushes stops but never moves a booking, reporting the clash instead", async () => {
+    const { reflowDay } = await import("@/lib/schedule");
+    const r = reflowDay([
+      { id: "a", startMinute: 600, durationMinutes: 120, travelMinutesFromPrev: null },
+      { id: "flight", startMinute: 690, durationMinutes: 60, travelMinutesFromPrev: 30, isFixed: true },
+      { id: "b", startMinute: 700, durationMinutes: 60, travelMinutesFromPrev: 10 },
+    ]);
+    expect(r.items.find((i) => i.id === "flight")!.startMinute).toBe(690);
+    expect(r.blocked).toEqual(["flight"]);
+    expect(r.changes).toEqual([{ id: "b", from: 700, to: 760 }]);
+  });
+});

@@ -78,6 +78,7 @@ export async function proposeReschedule(tripId: string, userId: string, raw: unk
       travelMinutesFromPrev: i.travelMinutesFromPrev,
       status: i.status,
       isIndoor: i.isIndoor ?? null,
+      isFixed: i.isFixed ?? false,
     })),
   };
 
@@ -99,7 +100,8 @@ export async function proposeReschedule(tripId: string, userId: string, raw: unk
   const removed = new Set<string>();
   for (const change of proposal.changes) {
     const item = refs.get(change.ref);
-    if (!item || item.status === "DONE") continue;
+    // Done stops and booked times (flights, reservations) are never touched.
+    if (!item || item.status === "DONE" || item.isFixed) continue;
     const w = working.find((x) => x.id === item.id)!;
     reasons.set(item.id, change.reason);
     if (change.action === "REMOVE") {
@@ -147,13 +149,13 @@ export async function applyReschedule(tripId: string, userId: string, raw: unkno
 
   const day = await db.$transaction(async (tx) => {
     await findTripDay(tx, tripId, input.dayId);
-    const items = await tx.itineraryItem.findMany({ where: { dayId: input.dayId }, select: { id: true, status: true } });
+    const items = await tx.itineraryItem.findMany({ where: { dayId: input.dayId }, select: { id: true, status: true, isFixed: true } });
     const byId = new Map(items.map((i) => [i.id, i]));
     for (const change of input.changes) {
       const item = byId.get(change.itemId);
       // Only items of this day, and never completed ones.
       if (!item) throw new AppError("NOT_FOUND", "일정을 찾을 수 없어요.");
-      if (item.status === "DONE") continue;
+      if (item.status === "DONE" || item.isFixed) continue;
       if (change.action === "REMOVE") {
         await tx.itineraryItem.delete({ where: { id: change.itemId } });
       } else {

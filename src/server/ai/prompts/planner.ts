@@ -1,4 +1,5 @@
 import "server-only";
+import { formatMinute } from "@/lib/itinerary";
 import { BUDGET_LEVEL_LABELS, TRAVEL_PACE_LABELS, TRAVEL_STYLE_LABELS } from "@/lib/constants";
 import type { PlannerContext } from "../trip-planner-context";
 import { PROMPT_VERSION, SAFETY_RULES, fence } from "./shared";
@@ -25,7 +26,7 @@ export function plannerInput(ctx: PlannerContext) {
   const lines = [
     `Destination: ${ctx.destination} (timezone ${ctx.timezone})`,
     `Dates: ${ctx.startDate} → ${ctx.endDate}; travelers: ${ctx.travelerCount}; currency: ${ctx.currency}`,
-    `Generate days: ${ctx.days.map((d) => `Day ${d.dayNumber} (${d.date}${d.rainy ? ", rainy" : ""}${d.hint ? `, traveller's plan for this day: "${d.hint}" — stay in that city/area` : ""})`).join(", ")}`,
+    `Generate days: ${ctx.days.map((d) => `Day ${d.dayNumber} (${d.date}${d.rainy ? ", rainy" : ""}${d.hint ? `, traveller's plan for this day: "${d.hint}" — stay in that city/area` : ""}${d.fixed?.length ? `, already booked (keep clear, plan around): ${d.fixed.map((f) => `${formatMinute(f.start)}–${formatMinute(f.end)} ${f.title.replace(/[,\n]/g, " ")}`).join("; ")}` : ""})`).join(", ")}`,
     `Total days in trip: ${ctx.totalDays}`,
     `Pace: ${ctx.pace} (${TRAVEL_PACE_LABELS[ctx.pace].label}); budget level: ${BUDGET_LEVEL_LABELS[ctx.budgetLevel].label}${
       ctx.budgetAmount ? `; total budget ${ctx.budgetAmount} ${ctx.currency}` : ""

@@ -16,7 +16,7 @@ export function mockReschedule(ctx: RescheduleContext): RescheduleProposalDraft 
 
   // Nothing pending may start in the past.
   if (ctx.nowMinute !== null) {
-    const firstPending = items.find((i) => i.status !== "DONE");
+    const firstPending = items.find((i) => i.status !== "DONE" && !i.isFixed);
     if (firstPending && firstPending.startMinute < ctx.nowMinute) {
       const to = Math.ceil((ctx.nowMinute + 10) / 5) * 5;
       set(firstPending.ref, { action: "MOVE", newStartTime: formatMinute(to), newDurationMinutes: null, reason: "현재 시간에 맞춰 옮겼어요." });
@@ -27,7 +27,7 @@ export function mockReschedule(ctx: RescheduleContext): RescheduleProposalDraft 
   // Fatigue: drop one optional stop first.
   const removable = () =>
     items
-      .filter((i) => i.status !== "DONE" && !["FOOD", "LODGING", "AIRPORT"].includes(i.category))
+      .filter((i) => i.status !== "DONE" && !i.isFixed && !["FOOD", "LODGING", "AIRPORT"].includes(i.category))
       .sort((a, b) => DROP_PRIORITY.indexOf(a.category) - DROP_PRIORITY.indexOf(b.category));
   if (tired) {
     const victim = removable()[0];
@@ -40,7 +40,7 @@ export function mockReschedule(ctx: RescheduleContext): RescheduleProposalDraft 
   // Rain: shorten outdoor afternoon stops.
   if (ctx.rainy) {
     for (const i of items) {
-      if (i.status !== "DONE" && i.isIndoor === false && i.startMinute >= 12 * 60 && i.durationMinutes > 45) {
+      if (i.status !== "DONE" && !i.isFixed && i.isIndoor === false && i.startMinute >= 12 * 60 && i.durationMinutes > 45) {
         const to = Math.round(i.durationMinutes * 0.6);
         set(i.ref, { action: "SHORTEN", newStartTime: null, newDurationMinutes: to, reason: "비 예보로 야외 체류를 줄였어요." });
         i.durationMinutes = to;

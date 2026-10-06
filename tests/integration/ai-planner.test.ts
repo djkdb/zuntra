@@ -177,3 +177,42 @@ describe("AI reschedule", () => {
     );
   });
 });
+
+describe("bookings (fixed items and flights)", () => {
+  it("plans around a booked flight and keeps it when regenerating", async () => {
+    const { addFlight, moveItem } = await import("@/server/services/itinerary-service");
+    const user = await createUser();
+    const { id } = await createTestTrip(user.id);
+    const itinerary = await getItinerary(id, user.id);
+    const first = itinerary.days[0]!;
+    const last = itinerary.days.at(-1)!;
+    await addFlight(id, user.id, { direction: "arrival", dayId: first.id, flightNumber: "ke 723", airport: "간사이공항", time: "15:20", otherEnd: "인천 13:20" });
+    await addFlight(id, user.id, { direction: "departure", dayId: last.id, flightNumber: "KE724", airport: "간사이공항", time: "18:00" });
+
+    const result = await generatePlan(id, user.id, { mode: "fill_empty" });
+    const day1 = result.days.find((d) => d.id === first.id)!;
+    const flightIn = day1.items.find((i) => i.isFixed)!;
+    expect(flightIn).toMatchObject({ title: "간사이공항 도착 · KE723", startMinute: 15 * 60 + 20, bookingRef: "KE723" });
+    // Nothing before landing, and no second guessed airport stop.
+    expect(day1.items.filter((i) => i.category === "AIRPORT")).toHaveLength(1);
+    expect(day1.items.filter((i) => !i.isFixed).every((i) => i.startMinute >= flightIn.startMinute + flightIn.durationMinutes)).toBe(true);
+    const dayN = result.days.find((d) => d.id === last.id)!;
+    const flightOut = dayN.items.find((i) => i.isFixed)!;
+    expect(flightOut.startMinute).toBe(16 * 60);
+    expect(dayN.items.filter((i) => !i.isFixed).every((i) => i.startMinute + i.durationMinutes <= flightOut.startMinute)).toBe(true);
+
+    const again = await generatePlan(id, user.id, { mode: "replace_all" });
+    expect(again.days.flatMap((d) => d.items).filter((i) => i.isFixed)).toHaveLength(2);
+    await expectAppError(moveItem(id, user.id, { itemId: flightIn.id, toDayId: first.id, toIndex: 2 }), "VALIDATION");
+  });
+
+  it("the rescheduler never proposes moving a booking", async () => {
+    const user = await createUser();
+    const { id } = await createTestTrip(user.id);
+    const day = (await getItinerary(id, user.id)).days[1]!;
+    await addItem(id, user.id, { dayId: day.id, title: "미술관", category: "CULTURE", startMinute: 600, durationMinutes: 180 });
+    await addItem(id, user.id, { dayId: day.id, title: "스시 예약", category: "FOOD", startMinute: 720, durationMinutes: 90, isFixed: true, bookingRef: "R-1234" });
+    const proposal = await proposeReschedule(id, user.id, { dayId: day.id, reason: "늦잠" });
+    expect(proposal.changes.some((c) => c.title === "스시 예약")).toBe(false);
+  });
+});

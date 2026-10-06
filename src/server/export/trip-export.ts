@@ -47,6 +47,7 @@ export function itineraryToIcs(itinerary: Itinerary): string {
       const details = [
         CATEGORY_LABELS[item.category],
         item.transportMode && item.travelMinutesFromPrev !== null ? `${TRANSPORT_LABELS[item.transportMode]}로 ${item.travelMinutesFromPrev}분` : null,
+        item.bookingRef ? `예약 번호: ${item.bookingRef}` : null,
         item.note,
       ].filter(Boolean);
       lines.push(
@@ -79,7 +80,7 @@ function csv(rows: (string | number | null | undefined)[][]): string {
 }
 
 export function itineraryToCsv(itinerary: Itinerary): string {
-  const rows: (string | number | null)[][] = [["DAY", "날짜", "시작", "끝", "일정", "분류", "이동", "이동(분)", "예상 비용", "주소", "메모", "상태"]];
+  const rows: (string | number | null)[][] = [["DAY", "날짜", "시작", "끝", "일정", "분류", "이동", "이동(분)", "예상 비용", "주소", "예약 번호", "메모", "상태"]];
   for (const day of itinerary.days) {
     for (const i of day.items) {
       rows.push([
@@ -93,6 +94,7 @@ export function itineraryToCsv(itinerary: Itinerary): string {
         i.travelMinutesFromPrev,
         i.estimatedCost,
         i.address ?? null,
+        i.bookingRef ?? null,
         i.note,
         i.status === "DONE" ? "완료" : "",
       ]);

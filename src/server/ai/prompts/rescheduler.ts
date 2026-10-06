@@ -18,6 +18,8 @@ export interface RescheduleContext {
     travelMinutesFromPrev: number | null;
     status: string;
     isIndoor: boolean | null;
+    /** Booked time (flight, reservation). */
+    isFixed?: boolean;
   }[];
   rainy: boolean;
   reason: string | null;
@@ -30,7 +32,7 @@ Given one day's itinerary and a reason (delay, fatigue, rain, user request), pro
 that makes the rest of the day feasible: every stop starts after the previous stop ends plus travel time,
 nothing starts before "now", and the day ends before the latest end time.
 Prefer, in order: moving later stops, shortening long stops, removing low-priority stops (shopping/cafe before meals and must-see sights).
-Never change stops with status DONE. Use only the refs given. summary: one or two Korean sentences.
+Never change stops with status DONE or marked FIXED (flights and reservations): plan the others around them. Use only the refs given. summary: one or two Korean sentences.
 ${SAFETY_RULES}`;
 }
 
@@ -40,7 +42,7 @@ export function reschedulerInput(ctx: RescheduleContext) {
     "Stops:",
     ...ctx.items.map(
       (i) =>
-        `${i.ref} | ${formatMinute(i.startMinute)} | ${i.durationMinutes}min | travel ${i.travelMinutesFromPrev ?? 15}min | ${i.category} | ${i.status}${i.isIndoor === false ? " | outdoor" : ""} | ${i.title.replace(/[|\n]/g, " ")}`,
+        `${i.ref} | ${formatMinute(i.startMinute)} | ${i.durationMinutes}min | travel ${i.travelMinutesFromPrev ?? 15}min | ${i.category} | ${i.status}${i.isFixed ? " | FIXED" : ""}${i.isIndoor === false ? " | outdoor" : ""} | ${i.title.replace(/[|\n]/g, " ")}`,
     ),
     fence("reason", ctx.reason, 300),
   ].join("\n");

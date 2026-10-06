@@ -22,6 +22,10 @@ export interface ItineraryItemView {
   isIndoor?: boolean | null;
   /** For edit-conflict detection (ISO). */
   updatedAt?: string;
+  /** Booked time: auto-adjust and AI leave it where it is. */
+  isFixed?: boolean;
+  /** Reservation / flight number. */
+  bookingRef?: string | null;
 }
 
 export interface DayView {
@@ -30,6 +34,8 @@ export interface DayView {
   date: string;
   title: string | null;
   notes: string | null;
+  /** Base city for the day, when it differs from the trip destination. */
+  city?: string | null;
   items: ItineraryItemView[];
 }
 

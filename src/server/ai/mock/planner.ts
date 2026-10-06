@@ -1,6 +1,7 @@
 import "server-only";
 import type { PlaceCategory, TravelStyle } from "@/generated/prisma/enums";
 import { estimateTravelMinutes, haversineKm, suggestMode } from "@/lib/geo";
+import { clashesWithFixed } from "@/lib/schedule";
 import { formatMinute } from "@/lib/itinerary";
 import type { PlanDraft, PlanItemDraft } from "../schemas/planner";
 import type { PlannerContext } from "../trip-planner-context";
@@ -145,11 +146,17 @@ export function mockPlan(ctx: PlannerContext): PlanDraft {
     const items: PlanItemDraft[] = [];
     let prev: Poi | null = null;
     let clock = slots[0]!.at;
+    const fixed = day.fixed ?? [];
+    // A booked flight replaces the guessed airport times.
+    const arrival = day.isFirst ? fixed.find((f) => f.category === "AIRPORT") : undefined;
+    const departure = day.isLast ? fixed.filter((f) => f.category === "AIRPORT").at(-1) : undefined;
+    const cutoff = departure ? departure.start - 60 : h(13);
+    const checkIn = arrival ? Math.ceil((arrival.end + 60) / 5) * 5 : h(13);
 
-    if (day.isFirst && ctx.totalDays > 1) {
-      slots = slots.filter((s) => s.at >= h(13));
+    if (day.isFirst && (ctx.totalDays > 1 || arrival)) {
+      slots = slots.filter((s) => s.at >= checkIn);
       // Arrival: from the airport into town, then drop the bags.
-      if (city.airport) {
+      if (city.airport && !arrival) {
         items.push({
           title: `${city.airport.name} 도착 · 시내로 이동`,
           category: "AIRPORT",
@@ -168,7 +175,7 @@ export function mockPlan(ctx: PlannerContext): PlanDraft {
       items.push({
         title: "숙소 체크인 · 짐 맡기기",
         category: "LODGING",
-        startTime: "13:00",
+        startTime: formatMinute(checkIn),
         durationMinutes: 30,
         transportMode: null,
         travelMinutesFromPrev: null,
@@ -179,14 +186,15 @@ export function mockPlan(ctx: PlannerContext): PlanDraft {
         isIndoor: true,
         note: "도착 후 가볍게 시작해요.",
       });
-      clock = h(13, 30);
+      clock = checkIn + 30;
     }
-    if (day.isLast && ctx.totalDays > 1) slots = slots.filter((s) => s.at < h(13));
+    const leaving = day.isLast && (ctx.totalDays > 1 || Boolean(departure));
+    if (leaving) slots = slots.filter((s) => s.at < cutoff);
 
     for (const slot of slots) {
       const cats = categoriesFor(slot.kind);
       const candidates = city.pois.filter(
-        (poi) => cats.includes(poi.category) && !used.has(poi.name) && !(day.isLast && ctx.totalDays > 1 && poi.minutes > 150),
+        (poi) => cats.includes(poi.category) && !used.has(poi.name) && !(leaving && poi.minutes > 150),
       );
       if (candidates.length === 0) continue;
       const best = candidates
@@ -197,8 +205,9 @@ export function mockPlan(ctx: PlannerContext): PlanDraft {
       const start = Math.max(slot.at, clock + (travel ?? 0));
       const rounded = Math.ceil(start / 5) * 5;
       if (rounded + best.minutes > h(22, 30)) break;
-      // Departure day: only what fits before heading to the airport (~13:00).
-      if (day.isLast && ctx.totalDays > 1 && rounded + best.minutes > h(13)) continue;
+      // Departure day: only what fits before heading to the airport.
+      if (leaving && rounded + best.minutes > cutoff) continue;
+      if (clashesWithFixed(rounded, rounded + best.minutes, fixed)) continue;
 
       used.add(best.name);
       const perPerson = convertCurrency(best.cost, city.currency, ctx.currency);
@@ -220,7 +229,7 @@ export function mockPlan(ctx: PlannerContext): PlanDraft {
       clock = rounded + best.minutes;
     }
 
-    if (day.isLast && ctx.totalDays > 1 && city.airport) {
+    if (day.isLast && ctx.totalDays > 1 && city.airport && !departure) {
       const travel = prev ? estimateTravelMinutes(prev, city.airport, "TRANSIT") : null;
       const start = Math.ceil(Math.max(clock + (travel ?? 0), h(13)) / 5) * 5;
       items.push({

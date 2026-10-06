@@ -32,6 +32,8 @@ export interface ItemDraft {
   estimatedCost: number | null;
   address: string | null;
   note: string | null;
+  isFixed: boolean;
+  bookingRef: string | null;
 }
 
 interface ItemDialogProps {
@@ -80,6 +82,8 @@ export function ItemDialog({ open, onOpenChange, mode, dayLabel, currency, initi
         estimatedCost: num("estimatedCost"),
         address: text("address"),
         note: text("note"),
+        isFixed: fd.get("isFixed") === "on",
+        bookingRef: fd.get("isFixed") === "on" ? text("bookingRef") : null,
       });
       onOpenChange(false);
     } catch (error) {
@@ -94,6 +98,7 @@ export function ItemDialog({ open, onOpenChange, mode, dayLabel, currency, initi
     }
   };
 
+  const [fixed, setFixed] = useState(initial?.isFixed ?? false);
   const duration = initial?.durationMinutes ?? 60;
   const durationOptions = DURATIONS.includes(duration) ? DURATIONS : [...DURATIONS, duration].sort((a, b) => a - b);
 
@@ -133,6 +138,28 @@ export function ItemDialog({ open, onOpenChange, mode, dayLabel, currency, initi
                 />
               )}
             </Field>
+          </div>
+          <div className="rounded-lg border p-3">
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <input
+                type="checkbox"
+                name="isFixed"
+                checked={fixed}
+                onChange={(e) => setFixed(e.target.checked)}
+                className="mt-0.5 size-4 accent-primary"
+              />
+              <span>
+                <span className="block text-sm font-medium">예약한 시간이에요</span>
+                <span className="block text-xs text-muted-foreground">항공편·식당·공연처럼 바꿀 수 없는 시간이면 체크하세요. 자동 조정과 AI가 이 일정은 옮기지 않아요.</span>
+              </span>
+            </label>
+            {fixed ? (
+              <div className="mt-3">
+                <Field label="예약 번호" optional error={errors.bookingRef}>
+                  {(p) => <Input {...p} name="bookingRef" maxLength={60} defaultValue={initial?.bookingRef ?? ""} placeholder="예: 편명, 예약 확인 번호" />}
+                </Field>
+              </div>
+            ) : null}
           </div>
           <Field label="예상 체류시간" error={errors.durationMinutes}>
             {(p) => (

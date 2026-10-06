@@ -28,6 +28,7 @@ export function WeatherStrip({ days, stale, today }: { days: DayWeatherView[]; s
           >
             <span className="text-xs font-semibold">DAY {d.dayNumber}</span>
             <span className="text-[11px] text-muted-foreground">{formatShortDate(d.date).replace(/ \(.\)/, "")}</span>
+            {d.place ? <span className="max-w-full truncate text-[11px] font-medium text-primary">{d.place}</span> : null}
             {d.available ? (
               <>
                 <WeatherIcon condition={d.condition} className="my-1 size-7" />

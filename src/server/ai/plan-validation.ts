@@ -37,7 +37,13 @@ const MAX_DISTANCE_KM = 150;
  */
 export function validatePlan(
   draft: PlanDraft,
-  options: { dayNumbers: number[]; pace: TravelPace; center: { lat: number; lng: number } | null },
+  options: {
+    dayNumbers: number[];
+    pace: TravelPace;
+    center: { lat: number; lng: number } | null;
+    /** Per-day base (a multi-city trip's Kyoto day is checked against Kyoto, not Osaka). */
+    centers?: Map<number, { lat: number; lng: number }>;
+  },
 ): { days: ValidPlanDay[]; warnings: string[] } {
   const warnings: string[] = [];
   const wanted = new Set(options.dayNumbers);
@@ -49,6 +55,7 @@ export function validatePlan(
     if (!wanted.has(day.dayNumber) || seenDays.has(day.dayNumber)) continue;
     seenDays.add(day.dayNumber);
 
+    const center = options.centers?.get(day.dayNumber) ?? options.center;
     let items: ValidPlanItem[] = [];
     for (const raw of day.items) {
       const startMinute = minuteFromTime(raw.startTime);
@@ -61,7 +68,7 @@ export function validatePlan(
       if (latitude === null || longitude === null) {
         latitude = null;
         longitude = null;
-      } else if (options.center && haversineKm(options.center, { lat: latitude, lng: longitude }) > MAX_DISTANCE_KM) {
+      } else if (center && haversineKm(center, { lat: latitude, lng: longitude }) > MAX_DISTANCE_KM) {
         latitude = null;
         longitude = null;
         warnings.push(`'${title}'의 위치가 여행지와 멀어 좌표를 제외했어요.`);

@@ -7,6 +7,7 @@ import {
   CheckIcon,
   CircleDashedIcon,
   GripVerticalIcon,
+  LockIcon,
   MapPinIcon,
   MoreHorizontalIcon,
   PencilIcon,
@@ -53,7 +54,7 @@ export function ItemRow({
 }: ItemRowProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
-    disabled: !editable,
+    disabled: !editable || Boolean(item.isFixed),
   });
   const done = item.status === "DONE";
 
@@ -74,7 +75,12 @@ export function ItemRow({
           done && "bg-muted/50",
         )}
       >
-        {editable ? (
+        {editable && item.isFixed ? (
+          // Booked times are not dragged; their time changes only through the edit dialog.
+          <span className="flex size-10 shrink-0 items-center justify-center text-primary" title="예약한 시간이라 고정돼 있어요">
+            <LockIcon className="size-4" aria-label="시간 고정" />
+          </span>
+        ) : editable ? (
           <button
             ref={setActivatorNodeRef}
             type="button"
@@ -95,6 +101,8 @@ export function ItemRow({
           </span>
           <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted-foreground">
             <span>{CATEGORY_LABELS[item.category]}</span>
+            {item.isFixed && !editable ? <span className="inline-flex items-center gap-0.5 font-medium text-primary"><LockIcon className="size-3" aria-hidden />예약</span> : null}
+            {item.bookingRef ? <span className="font-mono">#{item.bookingRef}</span> : null}
             {item.durationMinutes > 0 ? <span>{formatDuration(item.durationMinutes)}</span> : null}
             {item.estimatedCost ? <span>{formatMoney(item.estimatedCost, currency)}</span> : null}
             {item.address ? (
@@ -133,7 +141,7 @@ export function ItemRow({
                   <PencilIcon aria-hidden />
                   수정
                 </DropdownMenuItem>
-                {otherDays.length > 0 ? (
+                {otherDays.length > 0 && !item.isFixed ? (
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
                       <ArrowRightLeftIcon aria-hidden />

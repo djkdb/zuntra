@@ -22,7 +22,7 @@ import {
 import { useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api-client";
-import { withJosa } from "@/lib/korean";
+import { josa, withJosa } from "@/lib/korean";
 import { EmptyState } from "@/components/states/empty-state";
 import { ErrorState } from "@/components/states/error-state";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ import type { Itinerary } from "@/server/services/itinerary-service";
 import { type ItemDraft, ItemDialog } from "./item-dialog";
 import { DayMiniMap } from "./day-mini-map";
 import { DaySwitcher } from "./day-switcher";
+import { DayCityEditor } from "./day-city-editor";
 import { DayTitleEditor } from "./day-title-editor";
 import { ItemRow } from "./item-row";
 import { useItinerary, useItineraryMutations } from "./use-itinerary";
@@ -193,6 +194,18 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
                 editable={editable}
                 onSave={(title) => m.updateDay.mutate({ dayId: day.id, title }, { onSuccess: () => toast.success("이 날의 제목을 바꿨어요.") })}
               />
+              <DayCityEditor
+                key={`city-${day.id}`}
+                city={day.city ?? null}
+                destination={data.trip.destination}
+                editable={editable}
+                isLastDay={day.id === data.days.at(-1)?.id}
+                onSave={(city, applyToFollowing) =>
+                  m.updateDay.mutateAsync({ dayId: day.id, city, applyToFollowing }).then(() =>
+                    toast.success(city ? `${applyToFollowing ? "이날부터" : "이날"} ${withJosa(city, "을/를")} 기준으로 날씨와 AI 추천을 맞춰요.` : "여행지 기준으로 되돌렸어요."),
+                  )
+                }
+              />
             </div>
             <p className="text-sm text-muted-foreground">
               {day.items.length > 0
@@ -219,12 +232,20 @@ export function PlanEditor({ tripId, initialData, renderDayTools, renderEmptyDay
               <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-[oklch(0.55_0.13_65)]" aria-hidden />
               {preview.maxDelay > 0
                 ? `현재 일정이 ${formatDelay(preview.maxDelay)} 밀렸어요.`
-                : "자정을 넘기는 일정이 있어요."}
+                : preview.blocked.length > 0
+                  ? "예약한 시간과 겹치는 일정이 있어요."
+                  : "자정을 넘기는 일정이 있어요."}
             </p>
             <p className="mt-1 pl-6 text-sm text-muted-foreground">
               {preview.maxDelay > 0
                 ? `이후 일정 ${preview.changes.length}개를 이동시간에 맞춰 자동으로 조정할까요?`
                 : "일정을 줄이거나 다른 날로 옮겨 주세요."}
+              {preview.blocked.length > 0
+                ? ` ${day.items
+                    .filter((i) => preview.blocked.includes(i.id))
+                    .map((i) => `‘${i.title}’`)
+                    .join(", ")}${josa(day.items.find((i) => preview.blocked.includes(i.id))?.title ?? "", "은/는")} 고정이라 옮기지 않아요. 앞 일정을 줄여 주세요.`
+                : ""}
               {preview.overflow.length > 0 && preview.maxDelay > 0 ? " 조정하면 일부 일정이 자정을 넘겨요." : ""}
             </p>
             <div className="mt-3 flex flex-wrap gap-2 pl-6">
@@ -372,6 +393,8 @@ const FIELD_LABELS: Record<string, string> = {
   estimatedCost: "예상 비용",
   address: "주소",
   note: "메모",
+  isFixed: "시간 고정",
+  bookingRef: "예약 번호",
 };
 
 function changedFields(draft: ItemDraft, item: ItineraryItemView): Partial<ItemDraft> {

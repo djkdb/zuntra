@@ -178,3 +178,22 @@ describe("concurrent edits", () => {
     await expectAppError(updateItem(tripId, user.id, days[0]!.items[0]!.id, { startMinute: "" }), "VALIDATION");
   });
 });
+
+describe("per-day city", () => {
+  it("sets a city for a day and the days after, keeping titles", async () => {
+    const { getItinerary, updateDay } = await import("@/server/services/itinerary-service");
+    const user = await createUser();
+    const { id } = await createTestTrip(user.id);
+    const days = (await getItinerary(id, user.id)).days;
+    await updateDay(id, user.id, days[0]!.id, { title: "도착" });
+    const result = await updateDay(id, user.id, days[2]!.id, { city: "교토", applyToFollowing: true });
+    expect(result.days.map((d) => d.city)).toEqual(["교토", "교토", "교토"]);
+    const after = (await getItinerary(id, user.id)).days;
+    expect(after.map((d) => d.city ?? null)).toEqual([null, null, "교토", "교토", "교토"]);
+    expect(after[0]!.title).toBe("도착");
+    const row = await db.day.findUniqueOrThrow({ where: { id: days[2]!.id } });
+    expect(row.cityLat).not.toBeNull(); // geocoded (mock catalog)
+    await updateDay(id, user.id, days[4]!.id, { city: null });
+    expect((await getItinerary(id, user.id)).days[4]!.city ?? null).toBeNull();
+  });
+});

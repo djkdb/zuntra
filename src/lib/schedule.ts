@@ -11,6 +11,8 @@ export interface ScheduleItem {
   /** Travel from the previous stop; ignored for the first item. */
   travelMinutesFromPrev: number | null;
   status?: string;
+  /** Booked time (flight, reservation): never moved automatically. */
+  isFixed?: boolean;
 }
 
 export const DAY_START = 6 * 60;
@@ -56,14 +58,20 @@ export function analyzeDay(items: ScheduleItem[]): ScheduleIssue[] {
 
 /**
  * Pushes stops later (never earlier) so each one starts after the previous stop ends plus
- * travel. Items before `fromIndex` and finished items keep their times.
+ * travel. Items before `fromIndex`, finished items and fixed bookings keep their times; a stop
+ * pushed into a fixed booking is reported in `blocked` instead of moving the booking.
  */
 export function reflowDay(items: ScheduleItem[], fromIndex = 0) {
   const result = items.map((i) => ({ ...i }));
   const changes: ScheduleChange[] = [];
+  const blocked: string[] = [];
   for (let i = Math.max(fromIndex, 1); i < result.length; i++) {
     const item = result[i]!;
     if (item.status === "DONE") continue;
+    if (item.isFixed) {
+      if (item.startMinute < endOf(result[i - 1]!) + travelOf(item, i)) blocked.push(item.id);
+      continue;
+    }
     const earliest = endOf(result[i - 1]!) + travelOf(item, i);
     if (item.startMinute < earliest) {
       changes.push({ id: item.id, from: item.startMinute, to: earliest });
@@ -72,7 +80,12 @@ export function reflowDay(items: ScheduleItem[], fromIndex = 0) {
   }
   const maxDelay = changes.reduce((m, c) => Math.max(m, c.to - c.from), 0);
   const overflow = result.filter((i) => endOf(i) > DAY_END + 1).map((i) => i.id);
-  return { items: result, changes, maxDelay, overflow };
+  return { items: result, changes, maxDelay, overflow, blocked };
+}
+
+/** Whether [start, end) comes within `slack` minutes of any fixed window. */
+export function clashesWithFixed(start: number, end: number, fixed: { start: number; end: number }[], slack = 15): boolean {
+  return fixed.some((f) => start < f.end + slack && end > f.start - slack);
 }
 
 /**

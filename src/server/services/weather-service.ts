@@ -26,6 +26,9 @@ export async function getTripWeather(tripId: string, userId: string) {
           id: true,
           dayNumber: true,
           date: true,
+          city: true,
+          cityLat: true,
+          cityLng: true,
           items: { select: { title: true, category: true, startMinute: true, status: true, place: { select: { isIndoor: true } } } },
         },
       },
@@ -43,9 +46,27 @@ export async function getTripWeather(tripId: string, userId: string) {
 
   if (inWindow && Date.now() - newest > FRESH_MS) {
     try {
-      const center = await ensureTripCenter(tripId);
-      if (center) {
-        const daily = await provider.getDaily(center, startDate, endDate, trip.timezone, today);
+      const tripCenter = await ensureTripCenter(tripId);
+      // One request per distinct base: a multi-city trip gets each day's forecast for its own city.
+      const groups = new Map<string, { center: { lat: number; lng: number }; dates: Set<string> }>();
+      for (const d of trip.days) {
+        const center = d.cityLat !== null && d.cityLng !== null ? { lat: d.cityLat, lng: d.cityLng } : tripCenter;
+        if (!center) continue;
+        const key = `${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
+        const group = groups.get(key) ?? { center, dates: new Set<string>() };
+        group.dates.add(fromDbDate(d.date));
+        groups.set(key, group);
+      }
+      const daily = (
+        await Promise.all(
+          [...groups.values()].map(async (g) => {
+            const dates = [...g.dates].sort();
+            const rows = await provider.getDaily(g.center, dates[0]!, dates.at(-1)!, trip.timezone, today);
+            return rows.filter((w) => g.dates.has(w.date));
+          }),
+        )
+      ).flat();
+      if (daily.length > 0) {
         await db.$transaction(
           daily.map((w) =>
             db.weatherSnapshot.upsert({
@@ -87,6 +108,7 @@ export async function getTripWeather(tripId: string, userId: string) {
       available: Boolean(s),
       condition: s?.condition ?? "unknown",
       label: s ? weatherLabel(s.condition) : "예보 전",
+      place: d.city,
       tempMax: s?.tempMaxC ?? null,
       tempMin: s?.tempMinC ?? null,
       precipitation: s?.precipitationProbability ?? null,
